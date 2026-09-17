@@ -134,12 +134,65 @@ export class NewsAggregator {
 
   constructor() {
     this.startBackgroundPoller();
-    // Start live SEC EDGAR & Financial RSS pollers
+    // Initial fetch on boot
     this.pollSecEdgar();
     this.pollFinancialRss();
 
-    this.secTimer = setInterval(() => this.pollSecEdgar(), 30000); // Check SEC 8-Ks every 30s
-    this.rssTimer = setInterval(() => this.pollFinancialRss(), 60000); // Check News RSS every 60s
+    // Schedule adaptive recurring polls based on market session (RTH vs After-Hours)
+    this.scheduleNextSecPoll();
+    this.scheduleNextRssPoll();
+  }
+
+  private isMarketSessionActive(): boolean {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour12: false,
+      weekday: "short",
+      hour: "numeric",
+    });
+    const parts = formatter.formatToParts(now);
+    const weekday = parts.find((p) => p.type === "weekday")?.value || "";
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const isWeekend = weekday === "Sat" || weekday === "Sun";
+    // Active trading session: Weekdays 6:00 AM - 8:00 PM Eastern Time
+    return !isWeekend && hour >= 6 && hour < 20;
+  }
+
+  private getPollingIntervals(): { secInterval: number; rssInterval: number; isAfterHours: boolean } {
+    const isMarketHours = this.isMarketSessionActive();
+    if (isMarketHours) {
+      // Regular / Pre-Market active hours: high frequency
+      return {
+        secInterval: 30 * 1000,   // 30 seconds
+        rssInterval: 60 * 1000,   // 60 seconds
+        isAfterHours: false,
+      };
+    } else {
+      // After-Hours / Overnight / Weekends: poll only a few times per hour (~every 20 minutes)
+      const afterHoursMs = Number(process.env.AFTER_HOURS_POLL_INTERVAL_MS) || 20 * 60 * 1000;
+      return {
+        secInterval: afterHoursMs,
+        rssInterval: afterHoursMs,
+        isAfterHours: true,
+      };
+    }
+  }
+
+  private scheduleNextSecPoll() {
+    const { secInterval } = this.getPollingIntervals();
+    this.secTimer = setTimeout(async () => {
+      await this.pollSecEdgar();
+      this.scheduleNextSecPoll();
+    }, secInterval);
+  }
+
+  private scheduleNextRssPoll() {
+    const { rssInterval } = this.getPollingIntervals();
+    this.rssTimer = setTimeout(async () => {
+      await this.pollFinancialRss();
+      this.scheduleNextRssPoll();
+    }, rssInterval);
   }
 
   async pollSecEdgar() {

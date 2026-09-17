@@ -317,10 +317,36 @@ export class OptionsScanner {
     }
   }
 
+  private isMarketSessionActive(): boolean {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour12: false,
+      weekday: "short",
+      hour: "numeric",
+    });
+    const parts = formatter.formatToParts(now);
+    const weekday = parts.find((p) => p.type === "weekday")?.value || "";
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const isWeekend = weekday === "Sat" || weekday === "Sun";
+    // Options market regular session: Weekdays 9:30 AM - 4:15 PM Eastern Time
+    return !isWeekend && (hour >= 9 && hour < 17);
+  }
+
+  private scheduleNextThetaPoll() {
+    const isMarket = this.isMarketSessionActive();
+    // 20 seconds during regular market hours, 20 minutes during after-hours
+    const delay = isMarket ? 20 * 1000 : 20 * 60 * 1000;
+    this.thetaTimer = setTimeout(async () => {
+      await this.pollThetaData();
+      this.scheduleNextThetaPoll();
+    }, delay);
+  }
+
   private startStreamingTape() {
-    // Poll real ThetaData v3 tape every 20 seconds
+    // Initial probe and adaptive schedule
     this.pollThetaData();
-    this.thetaTimer = setInterval(() => this.pollThetaData(), 20000);
+    this.scheduleNextThetaPoll();
 
     // Generates periodic realistic options sweeps and blocks
     const CANDIDATES = [
