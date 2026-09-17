@@ -3,7 +3,16 @@ import { Server } from "http";
 import { globalNewsAggregator } from "../services/news-aggregator.js";
 import { globalOptionsScanner } from "../services/options-scanner.js";
 import { globalSignalsMonitor } from "../services/signals-monitor.js";
-import { NewsArticle, OptionsFlowTrade, MarketSignal, SquawkMessage } from "@wireforge/shared";
+import { globalWatchlistsService } from "../services/watchlists-service.js";
+import { NewsArticle, OptionsFlowTrade, MarketSignal, SquawkMessage, Watchlist } from "@wireforge/shared";
+
+let activeBroadcast: ((payload: any) => void) | null = null;
+
+export function broadcastWatchlistsUpdate(watchlists: Watchlist[]) {
+  if (activeBroadcast) {
+    activeBroadcast({ type: "watchlists", data: watchlists });
+  }
+}
 
 export function setupWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ server, path: "/v1/stream" });
@@ -21,6 +30,16 @@ export function setupWebSocketServer(server: Server) {
         timestamp: Date.now(),
       })
     );
+
+    // Send initial watchlists snapshot
+    try {
+      ws.send(
+        JSON.stringify({
+          type: "watchlists",
+          data: globalWatchlistsService.getAllWatchlists(),
+        })
+      );
+    } catch {}
 
     ws.on("close", () => {
       clients.delete(ws);
@@ -40,6 +59,7 @@ export function setupWebSocketServer(server: Server) {
       }
     }
   };
+  activeBroadcast = broadcast;
 
   // Wire event listeners to broadcast
   globalNewsAggregator.onNewArticle((article: NewsArticle) => {

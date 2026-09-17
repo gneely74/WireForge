@@ -22,33 +22,48 @@ export const App: React.FC = () => {
     setWatchlists,
   } = useWireForgeStore();
 
-  // Cross-Window BroadcastChannel sync with ChartForge (Symbol + Watchlist)
+  // Cross-Window and Cross-Screen sync with ChartForge (Symbol + Watchlist)
   useEffect(() => {
-    if (typeof BroadcastChannel === "undefined") return;
-
-    // 1. Symbol Sync
-    const symbolChannel = new BroadcastChannel("chartforge_symbol_sync");
-    symbolChannel.onmessage = (event) => {
-      const sym = (event.data?.ticker || event.data?.symbol)?.toUpperCase();
-      if (sym) {
-        useWireForgeStore.setState({ selectedTicker: sym });
-      }
-    };
-
-    // 2. Watchlist Sync (Instant sync when edited in ChartForge)
-    const watchlistChannel = new BroadcastChannel("wireforge_watchlist_sync");
-    watchlistChannel.onmessage = () => {
+    const refreshWatchlists = () => {
       fetch("/v1/watchlists")
         .then((res) => res.json())
         .then((data) => {
-          if (data.data) setWatchlists(data.data);
+          if (data.data && Array.isArray(data.data)) {
+            setWatchlists(data.data);
+          }
         })
         .catch(() => {});
     };
 
+    let symbolChannel: BroadcastChannel | null = null;
+    let watchlistChannel: BroadcastChannel | null = null;
+
+    if (typeof BroadcastChannel !== "undefined") {
+      // 1. Symbol Sync (same origin / tab group)
+      symbolChannel = new BroadcastChannel("chartforge_symbol_sync");
+      symbolChannel.onmessage = (event) => {
+        const sym = (event.data?.ticker || event.data?.symbol)?.toUpperCase();
+        if (sym) {
+          useWireForgeStore.setState({ selectedTicker: sym });
+        }
+      };
+
+      // 2. Watchlist Sync
+      watchlistChannel = new BroadcastChannel("wireforge_watchlist_sync");
+      watchlistChannel.onmessage = refreshWatchlists;
+    }
+
+    // 3. Tab Focus listener: automatically re-sync when trader switches or focuses tab
+    window.addEventListener("focus", refreshWatchlists);
+
+    // 4. Background periodic poller (every 4s) ensuring state stays synchronized across ports
+    const interval = setInterval(refreshWatchlists, 4000);
+
     return () => {
-      symbolChannel.close();
-      watchlistChannel.close();
+      symbolChannel?.close();
+      watchlistChannel?.close();
+      window.removeEventListener("focus", refreshWatchlists);
+      clearInterval(interval);
     };
   }, [setWatchlists]);
 

@@ -8,6 +8,7 @@ export function useWireWebSocket() {
     prependSignal,
     pushSquawkMessage,
     squawkEnabled,
+    setWatchlists,
   } = useWireForgeStore();
 
   const [isConnected, setIsConnected] = useState(false);
@@ -31,7 +32,9 @@ export function useWireWebSocket() {
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
-            if (msg.type === "news" && msg.data) {
+            if (msg.type === "watchlists" && Array.isArray(msg.data)) {
+              setWatchlists(msg.data);
+            } else if (msg.type === "news" && msg.data) {
               prependNewsArticle(msg.data);
             } else if (msg.type === "flow" && msg.data) {
               prependFlowTrade(msg.data);

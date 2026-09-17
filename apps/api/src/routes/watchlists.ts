@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { globalWatchlistsService } from "../services/watchlists-service.js";
+import { broadcastWatchlistsUpdate } from "../websocket/server.js";
 
 export const watchlistsRouter = new Hono();
 
@@ -29,6 +30,7 @@ watchlistsRouter.post("/", async (c) => {
       description: body.description,
       symbols: body.symbols,
     });
+    broadcastWatchlistsUpdate(globalWatchlistsService.getAllWatchlists());
     return c.json({ status: "ok", data: saved }, 201);
   } catch (err: any) {
     return c.json({ error: "Failed to save watchlist", details: err?.message }, 400);
@@ -41,6 +43,7 @@ watchlistsRouter.delete("/:id", (c) => {
   if (!deleted) {
     return c.json({ error: "Watchlist not found or cannot delete presets" }, 404);
   }
+  broadcastWatchlistsUpdate(globalWatchlistsService.getAllWatchlists());
   return c.json({ status: "ok", message: `Watchlist ${id} deleted` });
 });
 
@@ -56,6 +59,7 @@ watchlistsRouter.post("/:id/symbols", async (c) => {
     if (!updated) {
       return c.json({ error: `Watchlist ${id} not found` }, 404);
     }
+    broadcastWatchlistsUpdate(globalWatchlistsService.getAllWatchlists());
     return c.json({ status: "ok", data: updated });
   } catch (err: any) {
     return c.json({ error: "Failed to add symbol", details: err?.message }, 400);
@@ -70,6 +74,7 @@ watchlistsRouter.delete("/:id/symbols/:symbol", (c) => {
   if (!updated) {
     return c.json({ error: `Watchlist ${id} not found` }, 404);
   }
+  broadcastWatchlistsUpdate(globalWatchlistsService.getAllWatchlists());
   return c.json({ status: "ok", data: updated });
 });
 
@@ -80,12 +85,14 @@ watchlistsRouter.post("/:id/reset", (c) => {
   if (!reset) {
     return c.json({ error: `Preset watchlist ${id} not found` }, 404);
   }
+  broadcastWatchlistsUpdate(globalWatchlistsService.getAllWatchlists());
   return c.json({ status: "ok", data: reset, message: `Preset ${id} reset to default` });
 });
 
 watchlistsRouter.post("/sync", async (c) => {
   await globalWatchlistsService.syncFromTradingAgent();
   const list = globalWatchlistsService.getAllWatchlists();
+  broadcastWatchlistsUpdate(list);
   return c.json({ status: "ok", count: list.length, data: list });
 });
 

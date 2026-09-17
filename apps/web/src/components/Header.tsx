@@ -96,7 +96,20 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
           <div className="flex items-center gap-1">
             <div className="relative" ref={dropdownRef}>
               <button
-                onClick={() => setIsWatchlistDropdownOpen(!isWatchlistDropdownOpen)}
+                onClick={() => {
+                  const nextState = !isWatchlistDropdownOpen;
+                  setIsWatchlistDropdownOpen(nextState);
+                  if (nextState) {
+                    fetch("/v1/watchlists")
+                      .then((res) => res.json())
+                      .then((data) => {
+                        if (data.data && Array.isArray(data.data)) {
+                          useWireForgeStore.getState().setWatchlists(data.data);
+                        }
+                      })
+                      .catch(() => {});
+                  }
+                }}
                 className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#151a26] hover:bg-[#1a2233] border border-[#232b3d] text-xs transition-colors"
                 title="Filter WireForge streams by shared watchlist"
               >

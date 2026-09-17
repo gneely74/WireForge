@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Plus,
@@ -41,6 +41,30 @@ export const WatchlistManagerModal: React.FC = () => {
   const [newListName, setNewListName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Always refresh latest watchlists from server upon opening modal
+  useEffect(() => {
+    if (isWatchlistManagerOpen) {
+      fetch("/v1/watchlists")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.data && Array.isArray(data.data)) {
+            setWatchlists(data.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isWatchlistManagerOpen, setWatchlists]);
+
+  // Ensure selectedId points to a valid list
+  useEffect(() => {
+    if (watchlists.length > 0) {
+      const exists = watchlists.some((w) => w.id === selectedId);
+      if (!exists) {
+        setSelectedId(activeWatchlistId !== "all" ? activeWatchlistId : watchlists[0].id);
+      }
+    }
+  }, [watchlists, activeWatchlistId, selectedId]);
 
   if (!isWatchlistManagerOpen) return null;
 
