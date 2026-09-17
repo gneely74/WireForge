@@ -1,0 +1,19 @@
+services:
+  wireforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wireforge
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - PORT=5189
+      - TRADING_AGENT_API_URL=http://127.0.0.1:8080
+      - CHARTFORGE_API_URL=http://127.0.0.1:5188
+      - THETADATA_API_URL=http://127.0.0.1:25503
+      - TZ=America/Chicago
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
