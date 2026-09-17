@@ -77,7 +77,7 @@ export class OptionsScanner {
       list = list.filter((x) => x.isGolden === params.isGolden);
     }
 
-    const limit = params.limit || 100;
+    const limit = params.limit || 500;
     return list.slice(0, limit);
   }
 
@@ -99,7 +99,7 @@ export class OptionsScanner {
     }
 
     const totalPremium = bullishPremium + bearishPremium;
-    const bullishRatio = totalPremium > 0 ? (bullishPremium / totalPremium) * 100 : 50;
+    const bullishRatio = totalPremium > 0 ? (bullishPremium / totalPremium) * 100 : 0;
 
     return {
       totalTrades: list.length,
@@ -121,7 +121,7 @@ export class OptionsScanner {
     };
 
     this.trades.unshift(full);
-    if (this.trades.length > 500) {
+    if (this.trades.length > 1500) {
       this.trades.pop();
     }
 

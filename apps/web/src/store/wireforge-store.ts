@@ -148,7 +148,7 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   setFlowTrades: (flowTrades) => set({ flowTrades }),
   prependFlowTrade: (trade) =>
     set((state) => ({
-      flowTrades: [trade, ...state.flowTrades.filter((t) => t.id !== trade.id)].slice(0, 300),
+      flowTrades: [trade, ...state.flowTrades.filter((t) => t.id !== trade.id)].slice(0, 1000),
     })),
 
   setSignals: (signals) => set({ signals }),

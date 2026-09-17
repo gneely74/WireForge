@@ -11,7 +11,7 @@ flowRouter.get("/", (c) => {
   const sentiment = c.req.query("sentiment") as Sentiment | undefined;
   const orderType = c.req.query("order_type") as OptionOrderType | undefined;
   const isGolden = c.req.query("is_golden") !== undefined ? c.req.query("is_golden") === "true" : undefined;
-  const limit = c.req.query("limit") ? Number(c.req.query("limit")) : 100;
+  const limit = c.req.query("limit") ? Number(c.req.query("limit")) : 500;
   const watchlistId = c.req.query("watchlist");
 
   let watchlistSymbols: string[] | undefined;
