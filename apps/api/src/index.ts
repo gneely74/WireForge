@@ -121,6 +121,43 @@ if (resolvedWebDist) {
   if (process.env.NODE_ENV !== "test") {
     console.log(`[WireForge] Serving pre-built workstation from ${resolvedWebDist}`);
   }
+  // Explicit dedicated endpoints for favicons to ensure exact MIME types and avoid SPA fallback
+  app.get("/favicon.ico", (c) => {
+    const filePath = path.join(resolvedWebDist, "favicon.ico");
+    if (fs.existsSync(filePath)) {
+      const buffer = fs.readFileSync(filePath);
+      return c.body(buffer, 200, {
+        "Content-Type": "image/x-icon",
+        "Cache-Control": "public, max-age=86400",
+      });
+    }
+    return c.notFound();
+  });
+
+  app.get("/favicon.svg", (c) => {
+    const filePath = path.join(resolvedWebDist, "favicon.svg");
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      return c.body(content, 200, {
+        "Content-Type": "image/svg+xml; charset=utf-8",
+        "Cache-Control": "public, max-age=86400",
+      });
+    }
+    return c.notFound();
+  });
+
+  app.get("/favicon.png", (c) => {
+    const filePath = path.join(resolvedWebDist, "favicon.png");
+    if (fs.existsSync(filePath)) {
+      const buffer = fs.readFileSync(filePath);
+      return c.body(buffer, 200, {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=86400",
+      });
+    }
+    return c.notFound();
+  });
+
   app.use("/*", serveStatic({ root: relDist }));
   app.get("*", serveStatic({ path: path.join(relDist, "index.html") }));
 } else {
