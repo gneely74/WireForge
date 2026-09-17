@@ -45,7 +45,7 @@ export function setupWebSocketServer(server: Server) {
   globalNewsAggregator.onNewArticle((article: NewsArticle) => {
     broadcast({ type: "news", data: article });
 
-    // If high-impact, also broadcast to squawk channel
+    // If high-impact, also broadcast to squawk channel and emit real market signal
     if (article.impact === "high") {
       const squawkMsg: SquawkMessage = {
         id: `squawk-${article.id}`,
@@ -56,11 +56,34 @@ export function setupWebSocketServer(server: Server) {
         ticker: article.tickers[0],
       };
       broadcast({ type: "squawk", data: squawkMsg });
+
+      if (article.tickers.length > 0 && article.tickers[0] !== "MARKET" && article.tickers[0] !== "SEC") {
+        globalSignalsMonitor.addSignal({
+          ticker: article.tickers[0],
+          type: article.category === "sec" ? "vwap_cross" : "price_spike",
+          title: article.title,
+          description: article.summary,
+          metric: article.category.toUpperCase(),
+          sentiment: article.sentiment,
+        });
+      }
     }
   });
 
   globalOptionsScanner.onNewTrade((trade: OptionsFlowTrade) => {
     broadcast({ type: "flow", data: trade });
+
+    // If golden sweep or premium >= $500k, emit authentic market signal
+    if (trade.isGolden || trade.premium >= 500000) {
+      globalSignalsMonitor.addSignal({
+        ticker: trade.ticker,
+        type: "rvol_spike",
+        title: trade.isGolden ? "Institutional Golden Sweep" : "Institutional Block Alert",
+        description: `${trade.contractType} $${trade.strike} exp ${trade.expiration} (${trade.orderType.toUpperCase()})`,
+        metric: `$${(trade.premium / 1000).toFixed(0)}k`,
+        sentiment: trade.sentiment,
+      });
+    }
 
     // If golden sweep or premium >= $750k, squawk it!
     if (trade.isGolden || trade.premium >= 750000) {

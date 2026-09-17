@@ -1,4 +1,5 @@
 import { NewsArticle, NewsCategory, NewsImpact, Sentiment } from "@wireforge/shared";
+import { NewsDeduplicator } from "./news-dedup.js";
 
 // Seed / Initial Market Wire Items
 const INITIAL_NEWS: NewsArticle[] = [
@@ -130,9 +131,20 @@ export class NewsAggregator {
   private generatorTimer: NodeJS.Timeout | null = null;
   private secTimer: NodeJS.Timeout | null = null;
   private rssTimer: NodeJS.Timeout | null = null;
-  private seenUrls: Set<string> = new Set<string>();
+  private deduplicator: NewsDeduplicator = new NewsDeduplicator();
 
   constructor() {
+    // Seed deduplicator with initial wire articles
+    for (const art of this.articles) {
+      this.deduplicator.checkAndTrack({
+        id: art.id,
+        title: art.title,
+        url: art.url,
+        tickers: art.tickers,
+        timestamp: art.timestamp,
+      });
+    }
+
     this.startBackgroundPoller();
     // Initial fetch on boot
     this.pollSecEdgar();
@@ -211,8 +223,7 @@ export class NewsAggregator {
       for (const entry of entries) {
         const linkMatch = entry.match(/<link[^>]*href="([^"]*)"/);
         const link = linkMatch ? linkMatch[1] : "";
-        if (!link || this.seenUrls.has(link)) continue;
-        this.seenUrls.add(link);
+        if (!link) continue;
 
         const titleMatch = entry.match(/<title>(.*?)<\/title>/);
         let rawTitle = titleMatch ? titleMatch[1].trim() : "SEC Form 8-K Filing";
@@ -277,8 +288,7 @@ export class NewsAggregator {
       for (const item of items) {
         const linkMatch = item.match(/<link>(.*?)<\/link>/);
         const link = linkMatch ? linkMatch[1] : "";
-        if (!link || this.seenUrls.has(link)) continue;
-        this.seenUrls.add(link);
+        if (!link) continue;
 
         const titleMatch = item.match(/<title>(.*?)<\/title>/);
         let rawTitle = titleMatch ? titleMatch[1].trim() : "";
@@ -371,7 +381,18 @@ export class NewsAggregator {
     return list.slice(0, limit);
   }
 
-  addArticle(article: Omit<NewsArticle, "id" | "timestamp" | "isoTime" | "isSquawked"> & { isSquawked?: boolean }): NewsArticle {
+  addArticle(article: Omit<NewsArticle, "id" | "timestamp" | "isoTime" | "isSquawked"> & { isSquawked?: boolean }): NewsArticle | null {
+    const dedupe = this.deduplicator.checkAndTrack({
+      title: article.title,
+      url: article.url,
+      tickers: article.tickers,
+      timestamp: Date.now(),
+    });
+
+    if (dedupe.isDuplicate) {
+      return null;
+    }
+
     const full: NewsArticle = {
       ...article,
       id: `news-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -388,6 +409,10 @@ export class NewsAggregator {
 
     this.notifyListeners(full);
     return full;
+  }
+
+  getDedupeStats() {
+    return this.deduplicator.getStats();
   }
 
   onNewArticle(cb: (article: NewsArticle) => void): () => void {

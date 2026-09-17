@@ -22,8 +22,24 @@ newsRouter.get("/", (c) => {
   return c.json({ data, count: data.length });
 });
 
+newsRouter.get("/stats", (c) => {
+  return c.json({
+    totalArticles: globalNewsAggregator.getArticles({ limit: 1000 }).length,
+    dedupe: globalNewsAggregator.getDedupeStats(),
+  });
+});
+
 newsRouter.post("/", async (c) => {
   const body = await c.req.json();
   const created = globalNewsAggregator.addArticle(body);
+  if (!created) {
+    return c.json(
+      {
+        success: false,
+        message: "Duplicate article detected and suppressed by Tiers 1-3 deduplication engine",
+      },
+      409
+    );
+  }
   return c.json({ success: true, data: created }, 201);
 });

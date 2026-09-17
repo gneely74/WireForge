@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import app from "../src/index.js";
+import { globalOptionsScanner } from "../src/services/options-scanner.js";
+import { globalSignalsMonitor } from "../src/services/signals-monitor.js";
 
 describe("WireForge Backend API Test Suite", () => {
   it("GET /v1/health returns 200 and ok status", async () => {
@@ -19,24 +21,112 @@ describe("WireForge Backend API Test Suite", () => {
     expect(body.paths["/v1/flow"]).toBeDefined();
   });
 
-  it("GET /v1/news returns seeded news articles", async () => {
+  it("GET /v1/news returns news articles array", async () => {
     const res = await app.request("/v1/news");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBeGreaterThan(0);
-    expect(body.data[0].title).toBeDefined();
-    expect(body.data[0].tickers).toBeDefined();
   });
 
-  it("GET /v1/news?category=sec filters for SEC filings", async () => {
+  it("POST /v1/news adds article and filters correctly by category", async () => {
+    const testArticle = {
+      title: `SEC Form 8-K Test Filing ${Date.now()}`,
+      summary: "Material agreement test disclosure",
+      tickers: ["NVDA"],
+      category: "sec",
+      impact: "high",
+      sentiment: "bullish",
+      source: "SEC EDGAR",
+      url: `https://www.sec.gov/Archives/edgar/data/test-${Date.now()}`,
+    };
+    const postRes = await app.request("/v1/news", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(testArticle),
+    });
+    expect(postRes.status).toBe(201);
+
     const res = await app.request("/v1/news?category=sec");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.every((a: any) => a.category === "sec")).toBe(true);
+    expect(body.data.some((a: any) => a.title === testArticle.title)).toBe(true);
+  });
+
+  it("GET /v1/news/stats returns news counts and deduplication stats", async () => {
+    const res = await app.request("/v1/news/stats");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.totalArticles).toBeGreaterThanOrEqual(1);
+    expect(body.dedupe).toBeDefined();
+    expect(typeof body.dedupe.fingerprintsCount).toBe("number");
+  });
+
+  it("POST /v1/news deduplicates exact duplicate and near-duplicate articles", async () => {
+    const uniqueTitle = `Amazon expands project Kuiper satellite network ${Date.now()}`;
+    const payload1 = {
+      title: `${uniqueTitle} - Reuters`,
+      summary: "Amazon expands satellite broadband constellation.",
+      tickers: ["AMZN"],
+      category: "general",
+      impact: "medium",
+      sentiment: "bullish",
+      source: "Reuters",
+      url: `https://reuters.com/amzn-satellite-${Date.now()}?utm_source=rss`,
+    };
+
+    const res1 = await app.request("/v1/news", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload1),
+    });
+    expect(res1.status).toBe(201);
+    const body1 = await res1.json();
+    expect(body1.success).toBe(true);
+
+    // Duplicate post with different publisher suffix and UTM tracking (Tier 1 & 2)
+    const payload2 = {
+      title: `${uniqueTitle} | Bloomberg`,
+      summary: "Amazon expands satellite broadband constellation.",
+      tickers: ["AMZN"],
+      category: "general",
+      impact: "medium",
+      sentiment: "bullish",
+      source: "Bloomberg",
+      url: `https://reuters.com/amzn-satellite-${Date.now()}?utm_source=twitter`,
+    };
+
+    const res2 = await app.request("/v1/news", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload2),
+    });
+    expect(res2.status).toBe(409);
+    const body2 = await res2.json();
+    expect(body2.success).toBe(false);
+    expect(body2.message).toContain("Duplicate article detected");
   });
 
   it("GET /v1/flow returns unusual options activity trades", async () => {
+    globalOptionsScanner.addTrade({
+      ticker: "SPY",
+      expiration: "2026-09-18",
+      strike: 750,
+      contractType: "CALL",
+      spotPrice: 754.05,
+      tradePrice: 4.85,
+      size: 2500,
+      openInterest: 1800,
+      volume: 3800,
+      premium: 1212500,
+      orderType: "sweep",
+      side: "above_ask",
+      sentiment: "bullish",
+      isGolden: true,
+      dte: 2,
+      exchange: "OPRA",
+    });
+
     const res = await app.request("/v1/flow");
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -55,6 +145,14 @@ describe("WireForge Backend API Test Suite", () => {
   });
 
   it("GET /v1/signals returns market signals", async () => {
+    globalSignalsMonitor.addSignal({
+      ticker: "NVDA",
+      type: "VOLUME_SURGE",
+      headline: "NVDA unusual volume spike exceeding 3x 20-day average",
+      sentiment: "bullish",
+      strength: 4,
+    });
+
     const res = await app.request("/v1/signals");
     expect(res.status).toBe(200);
     const body = await res.json();

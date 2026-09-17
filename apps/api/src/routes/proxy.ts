@@ -32,23 +32,17 @@ proxyRouter.get("/candles", async (c) => {
       return c.json(data);
     }
   } catch {
-    // Fallback to synthetic
+    // Trading Agent also failed
   }
 
-  // Deterministic fallback candles
-  const now = Math.floor(Date.now() / 1000);
-  const bars = Array.from({ length: 40 }).map((_, i) => {
-    const time = now - (40 - i) * 300;
-    const base = 560 + Math.sin(i * 0.3) * 5;
-    return {
-      time,
-      open: base,
-      high: base + 0.8,
-      low: base - 0.7,
-      close: base + (Math.random() - 0.5) * 1.2,
-      volume: 12000 + Math.floor(Math.random() * 8000),
-    };
+  // No synthetic mock fallback; return empty data with informative message
+  return c.json({
+    symbol,
+    source: "unavailable",
+    interval,
+    range,
+    count: 0,
+    candles: [],
+    message: "No live market data available from connected charting services (ChartForge / Trading Agent offline)",
   });
-
-  return c.json({ symbol, source: "mock", interval, range, count: bars.length, candles: bars });
 });

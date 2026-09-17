@@ -207,35 +207,43 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
           <span className="flex items-center gap-1">
             <span className="text-gray-500">REGIME:</span>
             <span className="text-emerald-400 font-bold">
-              {ecosystemHealth?.tradingAgent.dixSentiment || "ACCUMULATION"}
+              {ecosystemHealth?.tradingAgent.dixSentiment || "STANDBY"}
             </span>
           </span>
 
           <span className="flex items-center gap-1">
             <span className="text-gray-500">DARK POOL DIX:</span>
             <span className="text-white font-bold">
-              {ecosystemHealth?.tradingAgent.dixValue?.toFixed(1) || "44.8"}%
+              {ecosystemHealth?.tradingAgent.dixValue !== undefined
+                ? `${ecosystemHealth.tradingAgent.dixValue.toFixed(1)}%`
+                : "—"}
             </span>
           </span>
 
           <span className="flex items-center gap-1">
             <span className="text-gray-500">SPY CALL WALL:</span>
             <span className="text-fuchsia-400 font-bold">
-              {ecosystemHealth?.tradingAgent.gexCallWall || "575.00"}
+              {ecosystemHealth?.tradingAgent.gexCallWall !== undefined
+                ? ecosystemHealth.tradingAgent.gexCallWall.toFixed(2)
+                : "—"}
             </span>
           </span>
 
           <span className="flex items-center gap-1">
             <span className="text-gray-500">SPY PUT WALL:</span>
             <span className="text-teal-400 font-bold">
-              {ecosystemHealth?.tradingAgent.gexPutWall || "560.00"}
+              {ecosystemHealth?.tradingAgent.gexPutWall !== undefined
+                ? ecosystemHealth.tradingAgent.gexPutWall.toFixed(2)
+                : "—"}
             </span>
           </span>
 
           <span className="flex items-center gap-1">
             <span className="text-gray-500">ZERO GAMMA FLIP:</span>
             <span className="text-yellow-400 font-bold">
-              {ecosystemHealth?.tradingAgent.gexZeroFlip || "565.00"}
+              {ecosystemHealth?.tradingAgent.gexZeroFlip !== undefined
+                ? ecosystemHealth.tradingAgent.gexZeroFlip.toFixed(2)
+                : "—"}
             </span>
           </span>
         </div>

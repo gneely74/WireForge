@@ -15,6 +15,7 @@ export const OptionsFlow: React.FC = () => {
     flowGoldenOnly,
     setFlowGoldenOnly,
     setSelectedTicker,
+    ecosystemHealth,
   } = useWireForgeStore();
 
   const filtered = useMemo(() => {
@@ -170,7 +171,18 @@ export const OptionsFlow: React.FC = () => {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={10} className="py-16 text-center text-gray-500">
-                  No options sweeps found matching filters.
+                  {flowTrades.length === 0 ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <span>No institutional options sweeps recorded.</span>
+                      <span className="text-[11px] text-gray-600">
+                        {ecosystemHealth?.thetadata.connected
+                          ? "ThetaData is ONLINE — listening for live OPRA trades..."
+                          : "ThetaData is STANDBY / Offline — waiting for connected tape."}
+                      </span>
+                    </div>
+                  ) : (
+                    <span>No options sweeps matching the current filters.</span>
+                  )}
                 </td>
               </tr>
             ) : (

@@ -106,24 +106,30 @@ export const SignalsScanner: React.FC = () => {
             </h4>
 
             <div className="flex flex-col divide-y divide-[#1b2333]">
-              {gainers.map((m) => (
-                <div
-                  key={m.ticker}
-                  onClick={() => setSelectedTicker(m.ticker)}
-                  className="py-2 flex items-center justify-between hover:bg-[#182030] px-2 rounded cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-white">${m.ticker}</span>
-                    <span className="text-gray-400 text-[11px]">${m.price.toFixed(2)}</span>
-                    <span className="text-gray-500 text-[10px]">RVOL: {m.rvol}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-[10px] max-w-[120px] truncate">{m.catalyst}</span>
-                    <span className="font-mono font-bold text-emerald-400">{m.change}</span>
-                  </div>
+              {gainers.length === 0 ? (
+                <div className="py-6 text-center text-gray-500 text-[11px]">
+                  No live market gainers feed connected.
                 </div>
-              ))}
+              ) : (
+                gainers.map((m) => (
+                  <div
+                    key={m.ticker}
+                    onClick={() => setSelectedTicker(m.ticker)}
+                    className="py-2 flex items-center justify-between hover:bg-[#182030] px-2 rounded cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white">${m.ticker}</span>
+                      <span className="text-gray-400 text-[11px]">${m.price.toFixed(2)}</span>
+                      <span className="text-gray-500 text-[10px]">RVOL: {m.rvol}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-[10px] max-w-[120px] truncate">{m.catalyst}</span>
+                      <span className="font-mono font-bold text-emerald-400">{m.change}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -135,24 +141,30 @@ export const SignalsScanner: React.FC = () => {
             </h4>
 
             <div className="flex flex-col divide-y divide-[#1b2333]">
-              {losers.map((m) => (
-                <div
-                  key={m.ticker}
-                  onClick={() => setSelectedTicker(m.ticker)}
-                  className="py-2 flex items-center justify-between hover:bg-[#182030] px-2 rounded cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-white">${m.ticker}</span>
-                    <span className="text-gray-400 text-[11px]">${m.price.toFixed(2)}</span>
-                    <span className="text-gray-500 text-[10px]">RVOL: {m.rvol}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-[10px] max-w-[120px] truncate">{m.catalyst}</span>
-                    <span className="font-mono font-bold text-red-400">{m.change}</span>
-                  </div>
+              {losers.length === 0 ? (
+                <div className="py-6 text-center text-gray-500 text-[11px]">
+                  No live market decliners feed connected.
                 </div>
-              ))}
+              ) : (
+                losers.map((m) => (
+                  <div
+                    key={m.ticker}
+                    onClick={() => setSelectedTicker(m.ticker)}
+                    className="py-2 flex items-center justify-between hover:bg-[#182030] px-2 rounded cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white">${m.ticker}</span>
+                      <span className="text-gray-400 text-[11px]">${m.price.toFixed(2)}</span>
+                      <span className="text-gray-500 text-[10px]">RVOL: {m.rvol}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-[10px] max-w-[120px] truncate">{m.catalyst}</span>
+                      <span className="font-mono font-bold text-red-400">{m.change}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

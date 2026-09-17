@@ -29,3 +29,14 @@ flowRouter.get("/stats", (c) => {
   const stats = globalOptionsScanner.getStats(ticker);
   return c.json({ data: stats });
 });
+
+flowRouter.post("/ingest", async (c) => {
+  try {
+    const body = await c.req.json();
+    const items = Array.isArray(body) ? body : [body];
+    const added = items.map((trade) => globalOptionsScanner.addTrade(trade));
+    return c.json({ status: "ok", count: added.length, data: added }, 201);
+  } catch (err: any) {
+    return c.json({ error: "Failed to ingest options flow", details: err?.message }, 400);
+  }
+});

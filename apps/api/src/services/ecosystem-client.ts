@@ -29,11 +29,11 @@ export class EcosystemClient {
       if (res.ok) {
         const data = await res.json();
         health.tradingAgent.connected = true;
-        health.tradingAgent.dixSentiment = data.regime || "NEUTRAL";
-        health.tradingAgent.dixValue = data.current_dix || 44.2;
+        health.tradingAgent.dixSentiment = data.regime || undefined;
+        health.tradingAgent.dixValue = typeof data.current_dix === "number" ? data.current_dix : undefined;
       }
     } catch {
-      // Offline fallback
+      // Offline
     }
 
     // GEX check on Trading Agent
@@ -43,15 +43,12 @@ export class EcosystemClient {
       });
       if (res.ok) {
         const gex = await res.json();
-        health.tradingAgent.gexCallWall = gex.call_wall || 575;
-        health.tradingAgent.gexPutWall = gex.put_wall || 560;
-        health.tradingAgent.gexZeroFlip = gex.zero_gamma || 565;
+        health.tradingAgent.gexCallWall = typeof gex.call_wall === "number" ? gex.call_wall : undefined;
+        health.tradingAgent.gexPutWall = typeof gex.put_wall === "number" ? gex.put_wall : undefined;
+        health.tradingAgent.gexZeroFlip = typeof gex.zero_gamma === "number" ? gex.zero_gamma : undefined;
       }
     } catch {
-      // Fallback defaults
-      health.tradingAgent.gexCallWall = 575;
-      health.tradingAgent.gexPutWall = 560;
-      health.tradingAgent.gexZeroFlip = 565;
+      // Offline - never use simulated or fallback numbers
     }
 
     // 2. Check ChartForge (:5188)
