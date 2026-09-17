@@ -26,6 +26,7 @@ export const NewsWire: React.FC = () => {
     { id: "guidance", label: "Guidance" },
     { id: "ma", label: "M&A" },
     { id: "macro", label: "Macro / Fed" },
+    { id: "social", label: "StockTwits Social" },
   ];
 
   const activeWatchlist = useMemo(
@@ -150,11 +151,27 @@ export const NewsWire: React.FC = () => {
                           ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/40"
                           : item.category === "fda"
                           ? "bg-amber-950/50 text-amber-300 border border-amber-800/40"
+                          : item.category === "social"
+                          ? "bg-sky-950/50 text-sky-300 border border-sky-600/40"
                           : "bg-blue-950/40 text-blue-300 border border-blue-800/30"
                       }`}
                     >
-                      {item.category}
+                      {item.category === "social" ? "StockTwits" : item.category}
                     </span>
+
+                    {item.sentiment && (
+                      <span
+                        className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-mono font-bold ${
+                          item.sentiment === "bullish"
+                            ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
+                            : item.sentiment === "bearish"
+                            ? "bg-rose-950/60 text-rose-400 border border-rose-800/40"
+                            : "bg-gray-800/50 text-gray-400 border border-gray-700/30"
+                        }`}
+                      >
+                        {item.sentiment}
+                      </span>
+                    )}
 
                     {isHighImpact && (
                       <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-red-600 text-white font-bold flex items-center gap-0.5 animate-pulse shadow-sm">

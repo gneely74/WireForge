@@ -13,6 +13,7 @@ export const NewsCategorySchema = z.enum([
   "guidance",
   "dividends",
   "macro",
+  "social",
   "general",
 ]);
 export type NewsCategory = z.infer<typeof NewsCategorySchema>;
@@ -207,3 +208,36 @@ export const PRESET_WATCHLISTS: Watchlist[] = [
     isPreset: true,
   },
 ];
+
+// ==========================================
+// 8. STOCKTWITS SOCIAL & SENTIMENT
+// ==========================================
+export const StockTwitsMessageSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  tickers: z.array(z.string()),
+  user: z.object({
+    username: z.string(),
+    name: z.string().optional(),
+    avatarUrl: z.string().optional(),
+    followers: z.number().default(0),
+  }),
+  sentiment: SentimentSchema.nullable(),
+  timestamp: z.number(),
+  isoTime: z.string(),
+  source: z.string().default("StockTwits"),
+  likes: z.number().default(0),
+});
+export type StockTwitsMessage = z.infer<typeof StockTwitsMessageSchema>;
+
+export const StockTwitsSentimentSchema = z.object({
+  symbol: z.string(),
+  bullishPct: z.number(),
+  bullishCount: z.number(),
+  bearishCount: z.number(),
+  totalMessages: z.number(),
+  watchlistCount: z.number().optional(),
+  updatedAt: z.number(),
+});
+export type StockTwitsSentiment = z.infer<typeof StockTwitsSentimentSchema>;
+

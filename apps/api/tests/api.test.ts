@@ -201,4 +201,20 @@ describe("WireForge Backend API Test Suite", () => {
     expect(body.data.tradingAgent).toBeDefined();
     expect(body.data.chartforge).toBeDefined();
   });
+
+  it("GET /v1/social/sentiment/:symbol returns sentiment object", async () => {
+    const res = await app.request("/v1/social/sentiment/NVDA");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.symbol).toBe("NVDA");
+    expect(typeof body.bullishPct).toBe("number");
+    expect(typeof body.totalMessages).toBe("number");
+  });
+
+  it("GET /v1/social/trending returns trending symbols", async () => {
+    const res = await app.request("/v1/social/trending");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.data)).toBe(true);
+  });
 });
