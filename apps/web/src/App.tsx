@@ -7,6 +7,7 @@ import { CorporateCalendar } from "./components/CorporateCalendar.js";
 import { AudioSquawk } from "./components/AudioSquawk.js";
 import { MiniChartModal } from "./components/MiniChartModal.js";
 import { ArticleModal } from "./components/ArticleModal.js";
+import { WatchlistManagerModal } from "./components/WatchlistManagerModal.js";
 import { useWireWebSocket } from "./hooks/useWireWebSocket.js";
 import { useWireForgeStore } from "./store/wireforge-store.js";
 
@@ -21,23 +22,35 @@ export const App: React.FC = () => {
     setWatchlists,
   } = useWireForgeStore();
 
-  // Cross-Window BroadcastChannel sync with ChartForge
+  // Cross-Window BroadcastChannel sync with ChartForge (Symbol + Watchlist)
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
-    const channel = new BroadcastChannel("chartforge_symbol_sync");
 
-    channel.onmessage = (event) => {
+    // 1. Symbol Sync
+    const symbolChannel = new BroadcastChannel("chartforge_symbol_sync");
+    symbolChannel.onmessage = (event) => {
       const sym = (event.data?.ticker || event.data?.symbol)?.toUpperCase();
       if (sym) {
-        // Update selected ticker state without re-broadcasting
         useWireForgeStore.setState({ selectedTicker: sym });
       }
     };
 
-    return () => {
-      channel.close();
+    // 2. Watchlist Sync (Instant sync when edited in ChartForge)
+    const watchlistChannel = new BroadcastChannel("wireforge_watchlist_sync");
+    watchlistChannel.onmessage = () => {
+      fetch("/v1/watchlists")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.data) setWatchlists(data.data);
+        })
+        .catch(() => {});
     };
-  }, []);
+
+    return () => {
+      symbolChannel.close();
+      watchlistChannel.close();
+    };
+  }, [setWatchlists]);
 
   // Initial Data Bootstrap
   useEffect(() => {
@@ -137,6 +150,7 @@ export const App: React.FC = () => {
       <AudioSquawk />
       <MiniChartModal />
       <ArticleModal />
+      <WatchlistManagerModal />
     </div>
   );
 };

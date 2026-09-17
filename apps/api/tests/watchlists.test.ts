@@ -123,4 +123,33 @@ describe("Watchlists API & Shared Interop Test Suite", () => {
     const body = await res.json();
     expect(body.status).toBe("ok");
   });
+
+  it("POST /v1/watchlists/:id/symbols and DELETE /v1/watchlists/:id/symbols/:symbol allow editing watchlists", async () => {
+    // Add COIN to Options Bellwethers
+    const addRes = await app.request("/v1/watchlists/options-bellwethers/symbols", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: "COIN" }),
+    });
+    expect(addRes.status).toBe(200);
+    const addBody = await addRes.json();
+    expect(addBody.data.symbols).toContain("COIN");
+
+    // Remove NVDA from Options Bellwethers
+    const delSymbolRes = await app.request("/v1/watchlists/options-bellwethers/symbols/NVDA", {
+      method: "DELETE",
+    });
+    expect(delSymbolRes.status).toBe(200);
+    const delSymbolBody = await delSymbolRes.json();
+    expect(delSymbolBody.data.symbols).not.toContain("NVDA");
+
+    // Reset preset to original defaults
+    const resetRes = await app.request("/v1/watchlists/options-bellwethers/reset", {
+      method: "POST",
+    });
+    expect(resetRes.status).toBe(200);
+    const resetBody = await resetRes.json();
+    expect(resetBody.data.symbols).toContain("NVDA");
+    expect(resetBody.data.symbols).not.toContain("COIN");
+  });
 });

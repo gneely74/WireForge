@@ -23,6 +23,8 @@ interface WireForgeState {
   setWatchlists: (watchlists: Watchlist[]) => void;
   activeWatchlistId: string;
   setActiveWatchlistId: (id: string) => void;
+  isWatchlistManagerOpen: boolean;
+  setIsWatchlistManagerOpen: (open: boolean) => void;
 
   // Selected Ticker for Mini-Chart modal & cross-screen sync
   selectedTicker: string | null;
@@ -102,6 +104,8 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   setWatchlists: (watchlists) => set({ watchlists }),
   activeWatchlistId: "all",
   setActiveWatchlistId: (activeWatchlistId) => set({ activeWatchlistId }),
+  isWatchlistManagerOpen: false,
+  setIsWatchlistManagerOpen: (isWatchlistManagerOpen) => set({ isWatchlistManagerOpen }),
 
   selectedTicker: null,
   setSelectedTicker: (selectedTicker) => {

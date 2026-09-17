@@ -9,5 +9,5 @@ coverage
 .env
 .env.local
 *.tsbuildinfo
-data/*.json
-!data/.gitkeep
+**/data/*.json
+!**/data/.gitkeep

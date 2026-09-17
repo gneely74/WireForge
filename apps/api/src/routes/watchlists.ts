@@ -44,6 +44,45 @@ watchlistsRouter.delete("/:id", (c) => {
   return c.json({ status: "ok", message: `Watchlist ${id} deleted` });
 });
 
+// Add symbol to watchlist
+watchlistsRouter.post("/:id/symbols", async (c) => {
+  const id = c.req.param("id");
+  try {
+    const body = await c.req.json();
+    if (!body.symbol || typeof body.symbol !== "string") {
+      return c.json({ error: "Symbol string is required" }, 400);
+    }
+    const updated = globalWatchlistsService.addSymbol(id, body.symbol);
+    if (!updated) {
+      return c.json({ error: `Watchlist ${id} not found` }, 404);
+    }
+    return c.json({ status: "ok", data: updated });
+  } catch (err: any) {
+    return c.json({ error: "Failed to add symbol", details: err?.message }, 400);
+  }
+});
+
+// Remove symbol from watchlist
+watchlistsRouter.delete("/:id/symbols/:symbol", (c) => {
+  const id = c.req.param("id");
+  const symbol = c.req.param("symbol");
+  const updated = globalWatchlistsService.removeSymbol(id, symbol);
+  if (!updated) {
+    return c.json({ error: `Watchlist ${id} not found` }, 404);
+  }
+  return c.json({ status: "ok", data: updated });
+});
+
+// Reset preset watchlist to default canonical symbols
+watchlistsRouter.post("/:id/reset", (c) => {
+  const id = c.req.param("id");
+  const reset = globalWatchlistsService.resetPreset(id);
+  if (!reset) {
+    return c.json({ error: `Preset watchlist ${id} not found` }, 404);
+  }
+  return c.json({ status: "ok", data: reset, message: `Preset ${id} reset to default` });
+});
+
 watchlistsRouter.post("/sync", async (c) => {
   await globalWatchlistsService.syncFromTradingAgent();
   const list = globalWatchlistsService.getAllWatchlists();
