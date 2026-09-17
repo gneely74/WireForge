@@ -98,16 +98,30 @@ watchlistsRouter.post("/sync", async (c) => {
 
 // Proxy to Trading Agent RadarScreen scanner
 watchlistsRouter.get("/radarscreen/scan", async (c) => {
-  const universe = c.req.query("universe") || "default";
+  const rawUniverse = c.req.query("universe") || "default";
   const refresh = c.req.query("refresh") === "true";
   const tradingAgentUrl = (process.env.TRADING_AGENT_API_URL || "http://127.0.0.1:8080").replace(/\/+$/, "");
 
+  let targetUniverse = rawUniverse;
+  if (rawUniverse === "options-bellwethers") {
+    targetUniverse = "options bellwethers";
+  } else if (rawUniverse === "indices-volatility") {
+    targetUniverse = "indices";
+  } else if (rawUniverse === "sector-etfs-macro") {
+    targetUniverse = "etfs";
+  } else if (rawUniverse !== "default" && rawUniverse !== "all") {
+    const wl = globalWatchlistsService.getWatchlist(rawUniverse);
+    if (wl) {
+      targetUniverse = wl.name.replace(/^radarscreen:\s*/i, "").trim().toLowerCase();
+    }
+  }
+
   try {
-    let res = await fetch(`${tradingAgentUrl}/api/radarscreen/data?universe=${encodeURIComponent(universe)}&refresh=${refresh}`, {
+    let res = await fetch(`${tradingAgentUrl}/api/radarscreen/data?universe=${encodeURIComponent(targetUniverse)}&refresh=${refresh}`, {
       signal: AbortSignal.timeout(4000),
     });
     if (!res.ok && res.status === 404) {
-      res = await fetch(`${tradingAgentUrl}/api/radarscreen/scan?universe=${encodeURIComponent(universe)}&refresh=${refresh}`, {
+      res = await fetch(`${tradingAgentUrl}/api/radarscreen/scan?universe=${encodeURIComponent(targetUniverse)}&refresh=${refresh}`, {
         signal: AbortSignal.timeout(4000),
       });
     }

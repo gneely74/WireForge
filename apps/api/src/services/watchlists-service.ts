@@ -9,10 +9,15 @@ export class WatchlistsService {
   private tradingAgentUrl: string;
 
   constructor() {
-    this.filePath = path.resolve(process.cwd(), "data/watchlists.json");
+    this.filePath = process.env.DATA_FILE || path.resolve(process.cwd(), "data/watchlists.json");
     this.tradingAgentUrl = (process.env.TRADING_AGENT_API_URL || "http://127.0.0.1:8080").replace(/\/+$/, "");
     this.loadFromDisk();
     this.syncFromTradingAgent();
+
+    // Periodic sync with Trading Agent RadarScreen every 10 seconds
+    setInterval(() => {
+      this.syncFromTradingAgent().catch(() => {});
+    }, 10000);
   }
 
   private loadFromDisk() {
@@ -40,7 +45,19 @@ export class WatchlistsService {
           }
           if (Array.isArray(parsed.customWatchlists)) {
             for (const w of parsed.customWatchlists) {
-              this.customWatchlists.set(w.id, w);
+              const cleanName = w.name.replace(/^radarscreen:\s*/i, "").trim();
+              const norm = cleanName.toLowerCase();
+              if (norm === "options bellwethers" || norm === "options_bellwethers") {
+                this.presetOverrides.set("options-bellwethers", w.symbols);
+                continue;
+              }
+              const cleanId = `custom-${norm.replace(/[^a-z0-9]+/g, "-")}`;
+              this.customWatchlists.set(cleanId, {
+                ...w,
+                id: cleanId,
+                name: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+                symbols: Array.isArray(w.symbols) ? w.symbols.map((s: any) => String(s).toUpperCase()) : [],
+              });
             }
           }
         }
@@ -80,20 +97,56 @@ export class WatchlistsService {
       });
       if (res.ok) {
         const body = await res.json();
+        let changed = false;
+
         if (body.custom && typeof body.custom === "object") {
-          for (const [name, symbols] of Object.entries(body.custom)) {
-            if (Array.isArray(symbols)) {
-              const id = `radarscreen-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+          for (const [rawName, rawSymbols] of Object.entries(body.custom)) {
+            if (!Array.isArray(rawSymbols)) continue;
+            const cleanName = rawName.replace(/^radarscreen:\s*/i, "").trim();
+            const normalizedName = cleanName.toLowerCase();
+            const symbols = Array.from(new Set(rawSymbols.map((s: any) => String(s).trim().toUpperCase()).filter(Boolean)));
+
+            // If it corresponds to a preset universe, update preset overrides
+            if (normalizedName === "options bellwethers" || normalizedName === "options_bellwethers") {
+              this.presetOverrides.set("options-bellwethers", symbols);
+              changed = true;
+              continue;
+            }
+            if (normalizedName === "indices") {
+              this.presetOverrides.set("indices-volatility", symbols);
+              changed = true;
+              continue;
+            }
+            if (normalizedName === "etfs") {
+              this.presetOverrides.set("sector-etfs-macro", symbols);
+              changed = true;
+              continue;
+            }
+
+            // Custom watchlist
+            const id = `custom-${normalizedName.replace(/[^a-z0-9]+/g, "-")}`;
+            const existing = this.customWatchlists.get(id);
+
+            if (!existing || JSON.stringify(existing.symbols) !== JSON.stringify(symbols)) {
+              const displayName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
               this.customWatchlists.set(id, {
                 id,
-                name: `RadarScreen: ${name}`,
+                name: displayName,
                 description: "Synchronized with Trading Agent RadarScreen",
-                symbols: (symbols as string[]).map((s) => s.toUpperCase()),
+                symbols,
                 isPreset: false,
                 updatedAt: Date.now(),
               });
+              changed = true;
             }
           }
+        }
+
+        if (changed) {
+          this.saveToDisk();
+          import("../websocket/server.js")
+            .then((mod) => mod.broadcastWatchlistsUpdate(this.getAllWatchlists()))
+            .catch(() => {});
         }
       }
     } catch {
@@ -238,10 +291,21 @@ export class WatchlistsService {
   }
 
   private forwardToRadarScreen(name: string, symbols: string[]) {
+    let cleanName = name.replace(/^radarscreen:\s*/i, "").trim().toLowerCase();
+    if (cleanName === "options-bellwethers" || cleanName === "options bellwethers") {
+      cleanName = "options bellwethers";
+    } else if (cleanName === "indices-volatility" || cleanName === "indices & volatility") {
+      cleanName = "indices";
+    } else if (cleanName === "sector-etfs-macro" || cleanName === "sector etfs & macro") {
+      cleanName = "etfs";
+    }
+
+    const cleanSymbols = Array.from(new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean)));
+
     fetch(`${this.tradingAgentUrl}/api/radarscreen/watchlist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, symbols }),
+      body: JSON.stringify({ name: cleanName, symbols: cleanSymbols }),
       signal: AbortSignal.timeout(2000),
     }).catch(() => {});
   }
