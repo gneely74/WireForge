@@ -98,6 +98,15 @@ export const MiniChartModal: React.FC = () => {
     });
   }, [candles]);
 
+  useEffect(() => {
+    if (!selectedTicker) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedTicker(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedTicker, setSelectedTicker]);
+
   if (!selectedTicker) return null;
 
   const first = candles[0];
@@ -108,7 +117,7 @@ export const MiniChartModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 select-none"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4 select-none"
       onClick={() => setSelectedTicker(null)}
     >
       <div

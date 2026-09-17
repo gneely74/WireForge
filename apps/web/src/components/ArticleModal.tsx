@@ -1,15 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { X, ExternalLink, Clock, ShieldCheck, Share2 } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 
 export const ArticleModal: React.FC = () => {
   const { selectedArticle, setSelectedArticle, setSelectedTicker } = useWireForgeStore();
 
+  useEffect(() => {
+    if (!selectedArticle) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedArticle(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedArticle, setSelectedArticle]);
+
   if (!selectedArticle) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 select-none"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 select-none"
       onClick={() => setSelectedArticle(null)}
     >
       <div
@@ -43,7 +52,10 @@ export const ArticleModal: React.FC = () => {
             {selectedArticle.tickers.map((t) => (
               <button
                 key={t}
-                onClick={() => setSelectedTicker(t)}
+                onClick={() => {
+                  setSelectedArticle(null);
+                  setSelectedTicker(t);
+                }}
                 className="px-2 py-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white font-mono font-bold text-xs transition-colors border border-blue-500/30"
               >
                 ${t} Chart
