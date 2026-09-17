@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Search, Filter, Clock, ExternalLink, ShieldAlert, Sparkles, BookOpen } from "lucide-react";
+import { Search, Filter, Clock, ExternalLink, ShieldAlert, Sparkles, BookOpen, Bookmark } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { NewsArticle, NewsCategory } from "@wireforge/shared";
 
@@ -12,6 +12,9 @@ export const NewsWire: React.FC = () => {
     setNewsSearchQuery,
     setSelectedTicker,
     setSelectedArticle,
+    watchlists,
+    activeWatchlistId,
+    setActiveWatchlistId,
   } = useWireForgeStore();
 
   const CATEGORIES: { id: NewsCategory; label: string }[] = [
@@ -25,6 +28,16 @@ export const NewsWire: React.FC = () => {
     { id: "macro", label: "Macro / Fed" },
   ];
 
+  const activeWatchlist = useMemo(
+    () => watchlists.find((w) => w.id === activeWatchlistId),
+    [watchlists, activeWatchlistId]
+  );
+
+  const activeSymbols = useMemo(() => {
+    if (!activeWatchlist) return null;
+    return new Set(activeWatchlist.symbols.map((s) => s.toUpperCase()));
+  }, [activeWatchlist]);
+
   const filtered = useMemo(() => {
     return newsArticles.filter((article) => {
       const matchesCat = newsCategory === "all" || article.category === newsCategory;
@@ -35,9 +48,13 @@ export const NewsWire: React.FC = () => {
         article.summary.toLowerCase().includes(q) ||
         article.tickers.some((t) => t.toLowerCase().includes(q));
 
-      return matchesCat && matchesQ;
+      const matchesWatchlist =
+        !activeSymbols ||
+        article.tickers.some((t) => activeSymbols.has(t.toUpperCase()));
+
+      return matchesCat && matchesQ && matchesWatchlist;
     });
-  }, [newsArticles, newsCategory, newsSearchQuery]);
+  }, [newsArticles, newsCategory, newsSearchQuery, activeSymbols]);
 
   return (
     <div className="flex flex-col h-full bg-[#0e121b] border-r border-[#1e2536] overflow-hidden">
@@ -51,6 +68,19 @@ export const NewsWire: React.FC = () => {
             <span className="text-xs px-2 py-0.5 rounded-full bg-[#1b2233] text-gray-400 font-mono">
               {filtered.length} items
             </span>
+            {activeWatchlist && (
+              <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <Bookmark size={11} />
+                <span>{activeWatchlist.name}</span>
+                <button
+                  onClick={() => setActiveWatchlistId("all")}
+                  className="ml-1 hover:text-white font-bold"
+                  title="Clear watchlist filter"
+                >
+                  ×
+                </button>
+              </span>
+            )}
           </div>
 
           <div className="relative w-56">

@@ -18,10 +18,37 @@ export const App: React.FC = () => {
     setFlowTrades,
     setSignals,
     setEcosystemHealth,
+    setWatchlists,
   } = useWireForgeStore();
+
+  // Cross-Window BroadcastChannel sync with ChartForge
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("chartforge_symbol_sync");
+
+    channel.onmessage = (event) => {
+      const sym = (event.data?.ticker || event.data?.symbol)?.toUpperCase();
+      if (sym) {
+        // Update selected ticker state without re-broadcasting
+        useWireForgeStore.setState({ selectedTicker: sym });
+      }
+    };
+
+    return () => {
+      channel.close();
+    };
+  }, []);
 
   // Initial Data Bootstrap
   useEffect(() => {
+    // 0. Fetch Shared Watchlists
+    fetch("/v1/watchlists")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data) setWatchlists(data.data);
+      })
+      .catch((err) => console.error("Failed to load initial watchlists:", err));
+
     // 1. Fetch News
     fetch("/v1/news")
       .then((res) => res.json())
@@ -65,7 +92,7 @@ export const App: React.FC = () => {
     }, 15000);
 
     return () => clearInterval(timer);
-  }, [setNewsArticles, setFlowTrades, setSignals, setEcosystemHealth]);
+  }, [setWatchlists, setNewsArticles, setFlowTrades, setSignals, setEcosystemHealth]);
 
   return (
     <div className="flex flex-col w-screen h-screen bg-[#0a0d14] text-[#d1d4dc] overflow-hidden">

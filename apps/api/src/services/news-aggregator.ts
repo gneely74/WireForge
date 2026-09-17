@@ -348,6 +348,7 @@ export class NewsAggregator {
   getArticles(params: {
     category?: NewsCategory;
     ticker?: string;
+    watchlistSymbols?: string[];
     impact?: NewsImpact;
     query?: string;
     limit?: number;
@@ -361,6 +362,11 @@ export class NewsAggregator {
     if (params.ticker) {
       const q = params.ticker.toUpperCase();
       list = list.filter((a) => a.tickers.includes(q));
+    }
+
+    if (params.watchlistSymbols && params.watchlistSymbols.length > 0) {
+      const allowed = new Set(params.watchlistSymbols.map((s) => s.toUpperCase()));
+      list = list.filter((a) => a.tickers.some((t) => allowed.has(t)));
     }
 
     if (params.impact) {

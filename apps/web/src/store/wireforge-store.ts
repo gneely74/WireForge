@@ -9,6 +9,8 @@ import {
   EcosystemHealth,
   SquawkMessage,
   Sentiment,
+  Watchlist,
+  PRESET_WATCHLISTS,
 } from "@wireforge/shared";
 
 interface WireForgeState {
@@ -16,7 +18,13 @@ interface WireForgeState {
   activeTab: "split" | "news" | "flow" | "signals" | "calendars";
   setActiveTab: (tab: "split" | "news" | "flow" | "signals" | "calendars") => void;
 
-  // Selected Ticker for Mini-Chart modal
+  // Shared Watchlists
+  watchlists: Watchlist[];
+  setWatchlists: (watchlists: Watchlist[]) => void;
+  activeWatchlistId: string;
+  setActiveWatchlistId: (id: string) => void;
+
+  // Selected Ticker for Mini-Chart modal & cross-screen sync
   selectedTicker: string | null;
   setSelectedTicker: (ticker: string | null) => void;
 
@@ -90,8 +98,32 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   activeTab: "split",
   setActiveTab: (tab) => set({ activeTab: tab }),
 
+  watchlists: PRESET_WATCHLISTS,
+  setWatchlists: (watchlists) => set({ watchlists }),
+  activeWatchlistId: "all",
+  setActiveWatchlistId: (activeWatchlistId) => set({ activeWatchlistId }),
+
   selectedTicker: null,
-  setSelectedTicker: (selectedTicker) => set({ selectedTicker }),
+  setSelectedTicker: (selectedTicker) => {
+    set({ selectedTicker });
+    if (selectedTicker) {
+      // 1. Cross-screen sync with ChartForge (<1ms BroadcastChannel)
+      try {
+        if (typeof BroadcastChannel !== "undefined") {
+          const ch = new BroadcastChannel("chartforge_symbol_sync");
+          ch.postMessage({ ticker: selectedTicker, symbol: selectedTicker });
+          ch.close();
+        }
+      } catch {}
+
+      // 2. Synchronize active symbol with Trading Agent RadarScreen
+      fetch("/v1/watchlists/radarscreen/active-symbol", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol: selectedTicker, interval: "5m" }),
+      }).catch(() => {});
+    }
+  },
 
   selectedArticle: null,
   setSelectedArticle: (selectedArticle) => set({ selectedArticle }),

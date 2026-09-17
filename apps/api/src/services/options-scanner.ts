@@ -10,6 +10,7 @@ export class OptionsScanner {
 
   getTrades(params: {
     ticker?: string;
+    watchlistSymbols?: string[];
     minPremium?: number;
     sentiment?: Sentiment;
     orderType?: OptionOrderType;
@@ -21,6 +22,11 @@ export class OptionsScanner {
     if (params.ticker) {
       const t = params.ticker.toUpperCase();
       list = list.filter((x) => x.ticker === t);
+    }
+
+    if (params.watchlistSymbols && params.watchlistSymbols.length > 0) {
+      const allowed = new Set(params.watchlistSymbols.map((s) => s.toUpperCase()));
+      list = list.filter((x) => allowed.has(x.ticker));
     }
 
     if (params.minPremium && params.minPremium > 0) {

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Zap, ShieldCheck, Filter, ArrowUpRight, ArrowDownRight, Sparkles } from "lucide-react";
+import { Zap, ShieldCheck, Filter, ArrowUpRight, ArrowDownRight, Sparkles, Bookmark } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { OptionsFlowTrade, OptionOrderType } from "@wireforge/shared";
 
@@ -16,7 +16,20 @@ export const OptionsFlow: React.FC = () => {
     setFlowGoldenOnly,
     setSelectedTicker,
     ecosystemHealth,
+    watchlists,
+    activeWatchlistId,
+    setActiveWatchlistId,
   } = useWireForgeStore();
+
+  const activeWatchlist = useMemo(
+    () => watchlists.find((w) => w.id === activeWatchlistId),
+    [watchlists, activeWatchlistId]
+  );
+
+  const activeSymbols = useMemo(() => {
+    if (!activeWatchlist) return null;
+    return new Set(activeWatchlist.symbols.map((s) => s.toUpperCase()));
+  }, [activeWatchlist]);
 
   const filtered = useMemo(() => {
     return flowTrades.filter((t) => {
@@ -26,10 +39,12 @@ export const OptionsFlow: React.FC = () => {
       const q = flowTickerFilter.trim().toUpperCase();
       const matchTicker = !q || t.ticker.includes(q);
       const matchGolden = !flowGoldenOnly || t.isGolden;
+      const matchWatchlist =
+        !activeSymbols || activeSymbols.has(t.ticker.toUpperCase());
 
-      return matchPrem && matchSent && matchTicker && matchGolden;
+      return matchPrem && matchSent && matchTicker && matchGolden && matchWatchlist;
     });
-  }, [flowTrades, flowMinPremium, flowSentimentFilter, flowTickerFilter, flowGoldenOnly]);
+  }, [flowTrades, flowMinPremium, flowSentimentFilter, flowTickerFilter, flowGoldenOnly, activeSymbols]);
 
   // Summary Metrics
   const stats = useMemo(() => {
@@ -62,6 +77,19 @@ export const OptionsFlow: React.FC = () => {
             <span className="text-xs px-2 py-0.5 rounded-full bg-[#1b2233] text-gray-400 font-mono">
               {filtered.length} sweeps
             </span>
+            {activeWatchlist && (
+              <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <Bookmark size={11} />
+                <span>{activeWatchlist.name}</span>
+                <button
+                  onClick={() => setActiveWatchlistId("all")}
+                  className="ml-1 hover:text-white font-bold"
+                  title="Clear watchlist filter"
+                >
+                  ×
+                </button>
+              </span>
+            )}
           </div>
 
           {/* Sentiment Bar */}

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { globalOptionsScanner } from "../services/options-scanner.js";
+import { globalWatchlistsService } from "../services/watchlists-service.js";
 import { OptionOrderType, Sentiment } from "@wireforge/shared";
 
 export const flowRouter = new Hono();
@@ -11,9 +12,17 @@ flowRouter.get("/", (c) => {
   const orderType = c.req.query("order_type") as OptionOrderType | undefined;
   const isGolden = c.req.query("is_golden") !== undefined ? c.req.query("is_golden") === "true" : undefined;
   const limit = c.req.query("limit") ? Number(c.req.query("limit")) : 100;
+  const watchlistId = c.req.query("watchlist");
+
+  let watchlistSymbols: string[] | undefined;
+  if (watchlistId && watchlistId !== "all") {
+    const wl = globalWatchlistsService.getWatchlist(watchlistId);
+    if (wl) watchlistSymbols = wl.symbols;
+  }
 
   const data = globalOptionsScanner.getTrades({
     ticker,
+    watchlistSymbols,
     minPremium,
     sentiment,
     orderType,

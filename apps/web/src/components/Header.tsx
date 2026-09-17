@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Activity,
   Volume2,
@@ -9,6 +9,11 @@ import {
   Zap,
   ExternalLink,
   Search,
+  Bookmark,
+  ChevronDown,
+  Globe,
+  Check,
+  Layers,
 } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { useAudioSquawk } from "../hooks/useAudioSquawk.js";
@@ -29,10 +34,26 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
     setSquawkDrawerOpen,
     ecosystemHealth,
     setSelectedTicker,
+    watchlists,
+    activeWatchlistId,
+    setActiveWatchlistId,
   } = useWireForgeStore();
 
   const { testSquawk } = useAudioSquawk();
   const [quickSearch, setQuickSearch] = useState("");
+  const [isWatchlistDropdownOpen, setIsWatchlistDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsWatchlistDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleQuickSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,13 +64,14 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
   };
 
   const chartforgeUrl = ecosystemHealth?.chartforge.url || "http://192.168.74.102:5188";
+  const activeWatchlist = watchlists.find((w) => w.id === activeWatchlistId);
 
   return (
     <header className="flex flex-col bg-[#0d111a] border-b border-[#1f2637] select-none">
       {/* Top Main Navigation Bar */}
       <div className="flex items-center justify-between px-4 py-2">
-        {/* Logo & Status */}
-        <div className="flex items-center gap-3">
+        {/* Logo, Status, & Watchlist Universe Selector */}
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 font-black tracking-wider text-base text-white">
             <span className="text-blue-500 text-lg">⚡</span>
             <span>WIRE<span className="text-blue-500">FORGE</span></span>
@@ -58,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-xs pr-2 border-r border-[#1f2637]">
             <span
               className={`w-2 h-2 rounded-full ${
                 isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"
@@ -67,6 +89,100 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
             <span className="text-gray-400 font-mono text-[11px]">
               {isConnected ? "LIVE FEED" : "CONNECTING..."}
             </span>
+          </div>
+
+          {/* Shared Watchlist Universe Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsWatchlistDropdownOpen(!isWatchlistDropdownOpen)}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#151a26] hover:bg-[#1a2233] border border-[#232b3d] text-xs transition-colors"
+              title="Filter WireForge streams by shared watchlist"
+            >
+              {activeWatchlistId === "all" ? (
+                <Globe size={13} className="text-blue-400" />
+              ) : (
+                <Bookmark size={13} className="text-amber-400" />
+              )}
+              <span className="font-semibold text-gray-200">
+                {activeWatchlist ? activeWatchlist.name : "All Markets"}
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#1e2638] text-gray-400 border border-[#2a344d]">
+                {activeWatchlist ? `${activeWatchlist.symbols.length}` : "ALL"}
+              </span>
+              <ChevronDown size={12} className="text-gray-400 ml-0.5" />
+            </button>
+
+            {isWatchlistDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-72 rounded-lg bg-[#121622] border border-[#263147] shadow-2xl z-50 overflow-hidden py-1">
+                <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-gray-400 border-b border-[#1c2436] flex items-center justify-between">
+                  <span>Shared Watchlists</span>
+                  <span className="text-[9px] text-blue-400">ChartForge Sync</span>
+                </div>
+
+                {/* All Markets Option */}
+                <button
+                  onClick={() => {
+                    setActiveWatchlistId("all");
+                    setIsWatchlistDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[#182030] text-xs transition-colors ${
+                    activeWatchlistId === "all" ? "bg-blue-600/15 text-blue-400 font-semibold" : "text-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Globe size={13} className={activeWatchlistId === "all" ? "text-blue-400" : "text-gray-400"} />
+                    <div>
+                      <div>All Markets (Unfiltered)</div>
+                      <div className="text-[10px] text-gray-500">Global broad market news & flow</div>
+                    </div>
+                  </div>
+                  {activeWatchlistId === "all" && <Check size={13} className="text-blue-400" />}
+                </button>
+
+                <div className="my-1 border-t border-[#1c2436]" />
+
+                {/* Watchlists List */}
+                <div className="max-h-60 overflow-y-auto">
+                  {watchlists.map((wl) => {
+                    const isSelected = activeWatchlistId === wl.id;
+                    return (
+                      <button
+                        key={wl.id}
+                        onClick={() => {
+                          setActiveWatchlistId(wl.id);
+                          setIsWatchlistDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[#182030] text-xs transition-colors ${
+                          isSelected ? "bg-blue-600/15 text-blue-400 font-semibold" : "text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Layers size={13} className={isSelected ? "text-blue-400" : "text-amber-400/80"} />
+                          <div className="overflow-hidden">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate">{wl.name}</span>
+                              <span className="text-[10px] font-mono px-1 rounded bg-[#1c2333] text-gray-400">
+                                {wl.symbols.length}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-gray-500 truncate">
+                              {wl.symbols.slice(0, 6).join(", ")}
+                              {wl.symbols.length > 6 ? "..." : ""}
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && <Check size={13} className="text-blue-400 flex-shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="px-3 py-1.5 text-[9px] font-mono text-gray-500 bg-[#0d1017] border-t border-[#1c2436] flex items-center justify-between">
+                  <span>Linked to RadarScreen (:8080)</span>
+                  <span>BroadcastChannel</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

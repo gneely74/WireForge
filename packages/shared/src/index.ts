@@ -170,3 +170,40 @@ export interface EcosystemHealth {
     connected: boolean;
   };
 }
+
+// ==========================================
+// 7. SHARED WATCHLISTS
+// ==========================================
+export const WatchlistSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  symbols: z.array(z.string()),
+  isPreset: z.boolean().default(false),
+  updatedAt: z.number().optional(),
+});
+export type Watchlist = z.infer<typeof WatchlistSchema>;
+
+export const PRESET_WATCHLISTS: Watchlist[] = [
+  {
+    id: "options-bellwethers",
+    name: "Options Bellwethers",
+    description: "Highest liquidity options flow & tech mega-caps",
+    symbols: ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AMD", "NFLX", "AVGO", "SMCI", "PLTR"],
+    isPreset: true,
+  },
+  {
+    id: "indices-volatility",
+    name: "Indices & Volatility",
+    description: "Benchmark equity indexes, broad market ETFs & volatility",
+    symbols: ["SPX", "SPY", "QQQ", "IWM", "RUT", "NDX", "DJX", "VIX"],
+    isPreset: true,
+  },
+  {
+    id: "sector-etfs-macro",
+    name: "Sector ETFs & Macro",
+    description: "Key economic sectors, interest rates, commodities & credit",
+    symbols: ["SPY", "QQQ", "IWM", "TLT", "XLF", "SMH", "XLE", "XLK", "GLD", "USO", "HYG"],
+    isPreset: true,
+  },
+];

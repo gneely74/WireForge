@@ -10,6 +10,7 @@ import { signalsRouter } from "./routes/signals.js";
 import { calendarsRouter } from "./routes/calendars.js";
 import { ecosystemRouter } from "./routes/ecosystem.js";
 import { proxyRouter } from "./routes/proxy.js";
+import { watchlistsRouter } from "./routes/watchlists.js";
 import { setupWebSocketServer } from "./websocket/server.js";
 
 const app = new Hono();
@@ -49,6 +50,7 @@ app.route("/v1/signals", signalsRouter);
 app.route("/v1/calendars", calendarsRouter);
 app.route("/v1/ecosystem", ecosystemRouter);
 app.route("/v1/proxy", proxyRouter);
+app.route("/v1/watchlists", watchlistsRouter);
 
 // OpenAPI Spec definition
 app.get("/v1/openapi.json", (c) => {
