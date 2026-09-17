@@ -120,7 +120,7 @@ export const OptionsFlow: React.FC = () => {
         <div className="flex items-center justify-between text-xs gap-3">
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Min Prem:</span>
-            {[25000, 50000, 100000, 250000, 1000000].map((prem) => (
+            {[0, 10000, 25000, 50000, 100000, 250000, 1000000].map((prem) => (
               <button
                 key={prem}
                 onClick={() => setFlowMinPremium(prem)}
@@ -130,7 +130,7 @@ export const OptionsFlow: React.FC = () => {
                     : "bg-[#161c28] text-gray-400 hover:text-white"
                 }`}
               >
-                ${prem >= 1000000 ? `${prem / 1000000}M` : `${prem / 1000}k`}
+                {prem === 0 ? "All" : prem >= 1000000 ? `$${prem / 1000000}M` : `$${prem / 1000}k`}
               </button>
             ))}
 

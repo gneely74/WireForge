@@ -169,7 +169,7 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   newsTickerFilter: "",
   setNewsTickerFilter: (newsTickerFilter) => set({ newsTickerFilter }),
 
-  flowMinPremium: 50000,
+  flowMinPremium: 25000,
   setFlowMinPremium: (flowMinPremium) => set({ flowMinPremium }),
   flowSentimentFilter: "all",
   setFlowSentimentFilter: (flowSentimentFilter) => set({ flowSentimentFilter }),

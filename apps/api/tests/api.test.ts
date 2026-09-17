@@ -136,6 +136,37 @@ describe("WireForge Backend API Test Suite", () => {
     expect(body.data[0].premium).toBeGreaterThan(0);
   });
 
+  it("supports multi-ticker ingestion and Put/Call sentiment filtering", async () => {
+    globalOptionsScanner.addTrade({
+      ticker: "QQQ",
+      expiration: "2026-09-18",
+      strike: 705,
+      contractType: "PUT",
+      spotPrice: 710.25,
+      tradePrice: 3.15,
+      size: 1500,
+      openInterest: 2200,
+      volume: 4500,
+      premium: 472500,
+      orderType: "sweep",
+      side: "above_ask",
+      sentiment: "bearish",
+      isGolden: false,
+      dte: 1,
+      exchange: "PHLX",
+    });
+
+    const resAll = await app.request("/v1/flow?ticker=QQQ");
+    expect(resAll.status).toBe(200);
+    const bodyAll = await resAll.json();
+    expect(bodyAll.data.some((t: any) => t.ticker === "QQQ" && t.contractType === "PUT")).toBe(true);
+
+    const resBear = await app.request("/v1/flow?sentiment=bearish");
+    expect(resBear.status).toBe(200);
+    const bodyBear = await resBear.json();
+    expect(bodyBear.data.every((t: any) => t.sentiment === "bearish")).toBe(true);
+  });
+
   it("GET /v1/flow/stats returns options sentiment ratio", async () => {
     const res = await app.request("/v1/flow/stats");
     expect(res.status).toBe(200);

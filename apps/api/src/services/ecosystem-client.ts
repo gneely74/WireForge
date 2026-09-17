@@ -67,12 +67,11 @@ export class EcosystemClient {
 
     // 3. Check ThetaData (:25503)
     try {
-      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      const res = await fetch(`${this.thetadataUrl}/v3/stock/history/ohlc?symbol=SPY&start_date=${today}&end_date=${today}&interval=1d`, {
+      const res = await fetch(`${this.thetadataUrl}/v3/option/list/expirations?symbol=SPY`, {
         signal: AbortSignal.timeout(2000),
       });
-      // ThetaTerminal v3 responds with 200 OK or 400 (if after hours/no data), but not 410 (old v2) or connection refused
-      health.thetadata.connected = res.status < 500 && res.status !== 410;
+      // ThetaTerminal v3 responds with 200 OK
+      health.thetadata.connected = res.ok || (res.status < 500 && res.status !== 410);
     } catch {
       health.thetadata.connected = false;
     }
