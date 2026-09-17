@@ -147,10 +147,11 @@ describe("WireForge Backend API Test Suite", () => {
   it("GET /v1/signals returns market signals", async () => {
     globalSignalsMonitor.addSignal({
       ticker: "NVDA",
-      type: "VOLUME_SURGE",
-      headline: "NVDA unusual volume spike exceeding 3x 20-day average",
+      type: "rvol_spike",
+      title: "NVDA unusual volume spike exceeding 3x 20-day average",
+      description: "Relative volume spike on semiconductor buying",
+      metric: "RVOL 3.2x",
       sentiment: "bullish",
-      strength: 4,
     });
 
     const res = await app.request("/v1/signals");
@@ -158,6 +159,15 @@ describe("WireForge Backend API Test Suite", () => {
     const body = await res.json();
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data[0].ticker).toBe("NVDA");
+  });
+
+  it("GET /v1/proxy/candles does NOT return fake synthetic candles when services are offline", async () => {
+    const res = await app.request("/v1/proxy/candles?symbol=SPY");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.source).toBe("unavailable");
+    expect(body.candles).toEqual([]);
   });
 
   it("GET /v1/signals/movers returns top gainers and losers", async () => {
