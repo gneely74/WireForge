@@ -128,9 +128,158 @@ export class NewsAggregator {
   private articles: NewsArticle[] = [...INITIAL_NEWS];
   private listeners: ((article: NewsArticle) => void)[] = [];
   private generatorTimer: NodeJS.Timeout | null = null;
+  private secTimer: NodeJS.Timeout | null = null;
+  private rssTimer: NodeJS.Timeout | null = null;
+  private seenUrls: Set<string> = new Set<string>();
 
   constructor() {
     this.startBackgroundPoller();
+    // Start live SEC EDGAR & Financial RSS pollers
+    this.pollSecEdgar();
+    this.pollFinancialRss();
+
+    this.secTimer = setInterval(() => this.pollSecEdgar(), 30000); // Check SEC 8-Ks every 30s
+    this.rssTimer = setInterval(() => this.pollFinancialRss(), 60000); // Check News RSS every 60s
+  }
+
+  async pollSecEdgar() {
+    try {
+      const res = await fetch("https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&output=atom", {
+        headers: {
+          "User-Agent": "WireForge/1.0 (gene@wireforge.local)",
+          "Accept": "application/atom+xml,text/xml,application/xml",
+        },
+        signal: AbortSignal.timeout(7000),
+      });
+      if (!res.ok) return;
+      const xml = await res.text();
+      const entries = xml.match(/<entry>([\s\S]*?)<\/entry>/g) || [];
+
+      for (const entry of entries) {
+        const linkMatch = entry.match(/<link[^>]*href="([^"]*)"/);
+        const link = linkMatch ? linkMatch[1] : "";
+        if (!link || this.seenUrls.has(link)) continue;
+        this.seenUrls.add(link);
+
+        const titleMatch = entry.match(/<title>(.*?)<\/title>/);
+        let rawTitle = titleMatch ? titleMatch[1].trim() : "SEC Form 8-K Filing";
+        rawTitle = rawTitle.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+
+        const summaryMatch = entry.match(/<summary[^>]*>([\s\S]*?)<\/summary>/);
+        let rawSummary = summaryMatch ? summaryMatch[1].replace(/<[^>]+>/g, " ").trim() : "Material Definitive Event disclosure filed with the SEC.";
+        rawSummary = rawSummary.replace(/\s+/g, " ");
+
+        const companyName = rawTitle.replace(/^8-K\s*-\s*/i, "").replace(/\s*\(\d+\)\s*\(Filer\)/i, "").trim();
+
+        const tickers: string[] = [];
+        const knownTickers: Record<string, string> = {
+          "Apple": "AAPL", "Microsoft": "MSFT", "NVIDIA": "NVDA", "Tesla": "TSLA",
+          "Amazon": "AMZN", "Alphabet": "GOOGL", "Google": "GOOGL", "Meta": "META",
+          "Super Micro": "SMCI", "Palantir": "PLTR", "Eli Lilly": "LLY", "Boeing": "BA",
+          "Netflix": "NFLX", "AMD": "AMD", "Intel": "INTC", "Broadcom": "AVGO",
+          "Micron": "MU", "FedEx": "FDX", "Lennar": "LEN", "Costco": "COST", "Nike": "NKE",
+        };
+        for (const [name, sym] of Object.entries(knownTickers)) {
+          if (companyName.toLowerCase().includes(name.toLowerCase())) {
+            tickers.push(sym);
+          }
+        }
+        if (tickers.length === 0) {
+          const m = companyName.match(/\b([A-Z]{2,5})\b/);
+          if (m) tickers.push(m[1]);
+        }
+
+        const isHighImpact = rawSummary.includes("Item 1.01") || rawSummary.includes("Item 2.02") || rawSummary.includes("Item 8.01");
+
+        this.addArticle({
+          title: `SEC Form 8-K: ${companyName}`,
+          summary: rawSummary.length > 200 ? rawSummary.slice(0, 197) + "..." : rawSummary,
+          content: `Filing URL: ${link}\n\n${rawSummary}`,
+          tickers: tickers.length > 0 ? tickers : ["SEC"],
+          category: "sec",
+          impact: isHighImpact ? "high" : "medium",
+          sentiment: "neutral",
+          source: "SEC EDGAR",
+          url: link,
+        });
+      }
+    } catch (err) {
+      // Suppress network transient errors
+    }
+  }
+
+  async pollFinancialRss() {
+    try {
+      const res = await fetch("https://news.google.com/rss/search?q=stock+market+when:1h&hl=en-US&gl=US&ceid=US:en", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)",
+          "Accept": "application/rss+xml,text/xml,application/xml",
+        },
+        signal: AbortSignal.timeout(7000),
+      });
+      if (!res.ok) return;
+      const xml = await res.text();
+      const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+
+      for (const item of items) {
+        const linkMatch = item.match(/<link>(.*?)<\/link>/);
+        const link = linkMatch ? linkMatch[1] : "";
+        if (!link || this.seenUrls.has(link)) continue;
+        this.seenUrls.add(link);
+
+        const titleMatch = item.match(/<title>(.*?)<\/title>/);
+        let rawTitle = titleMatch ? titleMatch[1].trim() : "";
+        rawTitle = rawTitle.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
+        const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/);
+        const source = sourceMatch ? sourceMatch[1].trim() : "MarketWire";
+
+        const title = rawTitle.replace(/\s*-\s*[^-]+$/, "").trim();
+
+        const tickers: string[] = [];
+        const tickerMatches = title.match(/\$([A-Z]{1,5})\b/g);
+        if (tickerMatches) {
+          for (const t of tickerMatches) {
+            tickers.push(t.replace("$", ""));
+          }
+        }
+        const WATCH_TICKERS = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "SPY", "QQQ", "SMCI", "PLTR", "LLY", "AMD", "MU", "LEN", "FDX", "COST", "NKE", "BA", "NFLX"];
+        for (const sym of WATCH_TICKERS) {
+          if (new RegExp(`\\b${sym}\\b`, "i").test(title) && !tickers.includes(sym)) {
+            tickers.push(sym);
+          }
+        }
+
+        const lower = title.toLowerCase();
+        let category: NewsCategory = "general";
+        if (lower.includes("earnings") || lower.includes("profit") || lower.includes("revenue") || lower.includes("quarter")) category = "earnings";
+        else if (lower.includes("fda") || lower.includes("drug") || lower.includes("trial") || lower.includes("biotech")) category = "fda";
+        else if (lower.includes("upgrade") || lower.includes("downgrade") || lower.includes("price target") || lower.includes("analyst")) category = "ratings";
+        else if (lower.includes("fed") || lower.includes("rate") || lower.includes("inflation") || lower.includes("cpi") || lower.includes("treasury")) category = "macro";
+        else if (lower.includes("guidance") || lower.includes("forecast") || lower.includes("outlook")) category = "guidance";
+        else if (lower.includes("merger") || lower.includes("acquire") || lower.includes("acquisition") || lower.includes("buyout")) category = "ma";
+
+        let sentiment: Sentiment = "neutral";
+        if (/surges|beats|rallies|jumps|soars|upgrades|bull|record high/i.test(lower)) sentiment = "bullish";
+        else if (/plunges|misses|drops|falls|halves|downgrade|bear|warning|slumps|tumbles/i.test(lower)) sentiment = "bearish";
+
+        const impact: NewsImpact = (/breaking|beats|halves|plunges|surges|crisis|fed rate/i.test(lower) || tickers.length > 0) ? "high" : "medium";
+
+        this.addArticle({
+          title,
+          summary: title,
+          content: `Source: ${source}\nRead Full Story: ${link}`,
+          tickers: tickers.length > 0 ? tickers : ["MARKET"],
+          category,
+          impact,
+          sentiment,
+          source,
+          url: link,
+        });
+      }
+    } catch (err) {
+      // Suppress network transient errors
+    }
   }
 
   getArticles(params: {
@@ -265,6 +414,8 @@ export class NewsAggregator {
 
   stop() {
     if (this.generatorTimer) clearInterval(this.generatorTimer);
+    if (this.secTimer) clearInterval(this.secTimer);
+    if (this.rssTimer) clearInterval(this.rssTimer);
   }
 }
 
