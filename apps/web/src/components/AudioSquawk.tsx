@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { X, Volume2, VolumeX, Radio, Play, CheckCircle2, History, Sliders } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { useAudioSquawk } from "../hooks/useAudioSquawk.js";
@@ -22,6 +22,15 @@ export const AudioSquawk: React.FC = () => {
   } = useWireForgeStore();
 
   const { availableVoices, testSquawk } = useAudioSquawk();
+
+  useEffect(() => {
+    if (!isSquawkDrawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSquawkDrawerOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSquawkDrawerOpen, setSquawkDrawerOpen]);
 
   if (!isSquawkDrawerOpen) return null;
 
