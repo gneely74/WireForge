@@ -137,7 +137,7 @@ export class StockTwitsService {
 
     const fallback: StockTwitsSentiment = {
       symbol: cleanSym,
-      bullishPct: 50.0,
+      bullishPct: 0.0,
       bullishCount: 0,
       bearishCount: 0,
       totalMessages: 0,
@@ -172,7 +172,7 @@ export class StockTwitsService {
       }
 
       const totalTagged = bullishCount + bearishCount;
-      const bullishPct = totalTagged > 0 ? Math.round((bullishCount / totalTagged) * 1000) / 10 : 50.0;
+      const bullishPct = totalTagged > 0 ? Math.round((bullishCount / totalTagged) * 1000) / 10 : 0.0;
 
       const result: StockTwitsSentiment = {
         symbol: cleanSym,

@@ -1,5 +1,6 @@
 import { OptionsFlowTrade, OptionOrderType, OptionSide, Sentiment } from "@wireforge/shared";
 import { globalWatchlistsService } from "./watchlists-service.js";
+import { globalOptionsDb, FlowQueryParams, FlowStatsResult } from "./options-db.js";
 
 const CORE_SYMBOLS = ["SPY", "QQQ", "IWM", "NVDA", "TSLA", "AAPL", "AMD", "META", "AMZN", "MSFT"];
 
@@ -21,6 +22,11 @@ const OPRA_EXCHANGE_MAP: Record<string, string> = {
   "76": "CBOE",
 };
 
+/**
+ * OptionsScanner manages real-time OPRA unusual options activity streaming from ThetaData,
+ * persists 100% of trades into SQLite for full-day zero-loss retention, and serves
+ * fast paginated queries and sentiment analytics.
+ */
 export class OptionsScanner {
   private trades: OptionsFlowTrade[] = [];
   private listeners: ((trade: OptionsFlowTrade) => void)[] = [];
@@ -37,80 +43,111 @@ export class OptionsScanner {
   private spotPriceCache = new Map<string, { price: number; expiresAt: number }>();
 
   constructor() {
+    try {
+      // Pre-warm the in-memory rolling buffer with the most recent trades from SQLite
+      const initial = globalOptionsDb.queryTrades({ limit: 1500 });
+      this.trades = initial.trades;
+    } catch (err) {
+      console.error("[OptionsScanner] Failed to pre-warm trades from options-db:", err);
+    }
     this.startStreamingTape();
   }
 
-  getTrades(params: {
-    ticker?: string;
-    watchlistSymbols?: string[];
-    minPremium?: number;
-    sentiment?: Sentiment;
-    orderType?: OptionOrderType;
-    isGolden?: boolean;
-    limit?: number;
-  }): OptionsFlowTrade[] {
-    let list = [...this.trades];
+  /**
+   * Retrieves options flow trades matching query filters with SQLite pagination.
+   *
+   * @param params Query parameters including ticker, watchlist, sentiment, minPremium, pagination
+   * @returns Paginated trades and total matching count
+   */
+  getTrades(params: FlowQueryParams): { trades: OptionsFlowTrade[]; total: number } {
+    try {
+      return globalOptionsDb.queryTrades(params);
+    } catch (err) {
+      console.error("[OptionsScanner] SQLite queryTrades failed, falling back to memory:", err);
+      let list = [...this.trades];
 
-    if (params.ticker) {
-      const t = params.ticker.toUpperCase();
-      list = list.filter((x) => x.ticker === t);
+      if (params.ticker) {
+        const t = params.ticker.toUpperCase();
+        list = list.filter((x) => x.ticker === t);
+      }
+
+      if (params.watchlistSymbols && params.watchlistSymbols.length > 0) {
+        const allowed = new Set(params.watchlistSymbols.map((s) => s.toUpperCase()));
+        list = list.filter((x) => allowed.has(x.ticker));
+      }
+
+      if (params.minPremium && params.minPremium > 0) {
+        list = list.filter((x) => x.premium >= params.minPremium!);
+      }
+
+      if (params.sentiment && params.sentiment !== "neutral") {
+        list = list.filter((x) => x.sentiment === params.sentiment);
+      }
+
+      if (params.orderType) {
+        list = list.filter((x) => x.orderType === params.orderType);
+      }
+
+      if (params.isGolden !== undefined) {
+        list = list.filter((x) => x.isGolden === params.isGolden);
+      }
+
+      const total = list.length;
+      const offset = params.offset || 0;
+      const limit = params.limit || 500;
+      return { trades: list.slice(offset, offset + limit), total };
     }
-
-    if (params.watchlistSymbols && params.watchlistSymbols.length > 0) {
-      const allowed = new Set(params.watchlistSymbols.map((s) => s.toUpperCase()));
-      list = list.filter((x) => allowed.has(x.ticker));
-    }
-
-    if (params.minPremium && params.minPremium > 0) {
-      list = list.filter((x) => x.premium >= params.minPremium!);
-    }
-
-    if (params.sentiment && params.sentiment !== "neutral") {
-      list = list.filter((x) => x.sentiment === params.sentiment);
-    }
-
-    if (params.orderType) {
-      list = list.filter((x) => x.orderType === params.orderType);
-    }
-
-    if (params.isGolden !== undefined) {
-      list = list.filter((x) => x.isGolden === params.isGolden);
-    }
-
-    const limit = params.limit || 500;
-    return list.slice(0, limit);
   }
 
-  getStats(ticker?: string) {
-    let list = this.trades;
-    if (ticker) {
-      const t = ticker.toUpperCase();
-      list = list.filter((x) => x.ticker === t);
+  /**
+   * Computes daily sentiment statistics and cumulative dollar volume across full day.
+   *
+   * @param ticker Optional ticker symbol filter
+   * @param date Optional YYYY-MM-DD date filter (defaults to today)
+   * @returns Aggregated daily metrics
+   */
+  getStats(ticker?: string, date?: string): FlowStatsResult {
+    try {
+      return globalOptionsDb.getDailyStats(date, ticker);
+    } catch (err) {
+      console.error("[OptionsScanner] SQLite getDailyStats failed, falling back to memory:", err);
+      let list = this.trades;
+      if (ticker) {
+        const t = ticker.toUpperCase();
+        list = list.filter((x) => x.ticker === t);
+      }
+
+      let bullishPremium = 0;
+      let bearishPremium = 0;
+      let goldenCount = 0;
+
+      for (const t of list) {
+        if (t.sentiment === "bullish") bullishPremium += t.premium;
+        if (t.sentiment === "bearish") bearishPremium += t.premium;
+        if (t.isGolden) goldenCount++;
+      }
+
+      const totalPremium = bullishPremium + bearishPremium;
+      const bullishRatio = totalPremium > 0 ? (bullishPremium / totalPremium) * 100 : 0;
+
+      return {
+        totalTrades: list.length,
+        bullishPremium,
+        bearishPremium,
+        totalPremium,
+        bullishRatio: Number(bullishRatio.toFixed(1)),
+        goldenCount,
+      };
     }
-
-    let bullishPremium = 0;
-    let bearishPremium = 0;
-    let goldenCount = 0;
-
-    for (const t of list) {
-      if (t.sentiment === "bullish") bullishPremium += t.premium;
-      if (t.sentiment === "bearish") bearishPremium += t.premium;
-      if (t.isGolden) goldenCount++;
-    }
-
-    const totalPremium = bullishPremium + bearishPremium;
-    const bullishRatio = totalPremium > 0 ? (bullishPremium / totalPremium) * 100 : 0;
-
-    return {
-      totalTrades: list.length,
-      bullishPremium,
-      bearishPremium,
-      totalPremium,
-      bullishRatio: Number(bullishRatio.toFixed(1)),
-      goldenCount,
-    };
   }
 
+  /**
+   * Ingests a new options flow trade, persists it immediately to SQLite database,
+   * updates the in-memory rolling buffer, and broadcasts to active WebSocket listeners.
+   *
+   * @param trade Ingested trade details
+   * @returns Fully formed OptionsFlowTrade with ID and timestamps
+   */
   addTrade(trade: Omit<OptionsFlowTrade, "id" | "timestamp" | "timeStr">): OptionsFlowTrade {
     const now = Date.now();
     const full: OptionsFlowTrade = {
@@ -120,11 +157,20 @@ export class OptionsScanner {
       timeStr: new Date(now).toLocaleTimeString("en-US", { hour12: false }),
     };
 
+    // 1. Persist to SQLite for full-day zero-loss retention
+    try {
+      globalOptionsDb.insertTrade(full);
+    } catch (err) {
+      console.error("[OptionsScanner] Failed to insert trade into SQLite:", err);
+    }
+
+    // 2. Add to in-memory rolling buffer
     this.trades.unshift(full);
     if (this.trades.length > 1500) {
       this.trades.pop();
     }
 
+    // 3. Broadcast to real-time WebSocket listeners
     this.notifyListeners(full);
     return full;
   }

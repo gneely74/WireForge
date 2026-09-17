@@ -11,3 +11,6 @@ coverage
 *.tsbuildinfo
 **/data/*.json
 !**/data/.gitkeep
+*.db
+*.db-*
+**/data/*.db*

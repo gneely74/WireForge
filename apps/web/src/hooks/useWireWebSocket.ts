@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 
-export function useWireWebSocket() {
+/**
+ * React hook that manages the real-time WebSocket connection to the WireForge server (/v1/stream).
+ * Ingests live streaming events including news articles, unusual options flow prints,
+ * market signals, audio squawk announcements, and synchronized watchlists.
+ *
+ * Upstream Source: `/v1/stream` WebSocket broadcast from API server.
+ * Downstream Sink: WireForge Zustand store (`prependNewsArticle`, `prependFlowTrade`, `prependSignal`, `pushSquawkMessage`, `setWatchlists`).
+ *
+ * @returns {{ isConnected: boolean }} Object containing current live connection state.
+ */
+export function useWireWebSocket(): { isConnected: boolean } {
   const {
     prependNewsArticle,
     prependFlowTrade,
     prependSignal,
     pushSquawkMessage,
-    squawkEnabled,
     setWatchlists,
   } = useWireForgeStore();
 
@@ -41,9 +50,7 @@ export function useWireWebSocket() {
             } else if (msg.type === "signal" && msg.data) {
               prependSignal(msg.data);
             } else if (msg.type === "squawk" && msg.data) {
-              if (squawkEnabled) {
-                pushSquawkMessage(msg.data);
-              }
+              pushSquawkMessage(msg.data);
             }
           } catch (err) {
             console.error("[WireWebSocket] parse error:", err);
@@ -70,7 +77,7 @@ export function useWireWebSocket() {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (socketRef.current) socketRef.current.close();
     };
-  }, [prependNewsArticle, prependFlowTrade, prependSignal, pushSquawkMessage, squawkEnabled]);
+  }, [prependNewsArticle, prependFlowTrade, prependSignal, pushSquawkMessage, setWatchlists]);
 
   return { isConnected };
 }

@@ -175,6 +175,22 @@ describe("WireForge Backend API Test Suite", () => {
     expect(typeof body.data.bullishRatio).toBe("number");
   });
 
+  it("GET /v1/flow supports offset pagination and returns total counts", async () => {
+    const res = await app.request("/v1/flow?limit=1&offset=0");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.length).toBe(1);
+    expect(body.total).toBeGreaterThanOrEqual(2);
+    expect(body.offset).toBe(0);
+    expect(body.limit).toBe(1);
+
+    const resOffset = await app.request("/v1/flow?limit=1&offset=1");
+    expect(resOffset.status).toBe(200);
+    const bodyOffset = await resOffset.json();
+    expect(bodyOffset.data.length).toBe(1);
+    expect(bodyOffset.data[0].id).not.toBe(body.data[0].id);
+  });
+
   it("GET /v1/signals returns market signals", async () => {
     globalSignalsMonitor.addSignal({
       ticker: "NVDA",

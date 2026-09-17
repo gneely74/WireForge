@@ -1,11 +1,21 @@
 import React, { useMemo } from "react";
-import { Zap, ShieldCheck, Filter, ArrowUpRight, ArrowDownRight, Sparkles, Bookmark } from "lucide-react";
+import { Zap, ShieldCheck, ArrowUpRight, ArrowDownRight, Sparkles, Bookmark, History } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { OptionsFlowTrade, OptionOrderType } from "@wireforge/shared";
 
+/**
+ * OptionsFlow Component
+ * Renders the real-time institutional unusual options activity tape with
+ * live OPRA streaming, instant client-side filtering, daily sentiment ratio,
+ * and zero-loss full-day historical session pagination from persistent SQLite.
+ */
 export const OptionsFlow: React.FC = () => {
   const {
     flowTrades,
+    flowTotal,
+    hasMoreFlow,
+    isFlowLoadingMore,
+    loadEarlierTrades,
     flowMinPremium,
     setFlowMinPremium,
     flowSentimentFilter,
@@ -59,7 +69,7 @@ export const OptionsFlow: React.FC = () => {
     }
 
     const total = bull + bear;
-    const ratio = total > 0 ? (bull / total) * 100 : 50;
+    const ratio = total > 0 ? (bull / total) * 100 : 0;
 
     return { bull, bear, total, ratio: ratio.toFixed(1), golden };
   }, [filtered]);
@@ -76,6 +86,7 @@ export const OptionsFlow: React.FC = () => {
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-[#1b2233] text-gray-400 font-mono">
               {filtered.length} sweeps
+              {flowTotal > flowTrades.length && ` (${flowTrades.length} of ${flowTotal})`}
             </span>
             {activeWatchlist && (
               <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -316,6 +327,50 @@ export const OptionsFlow: React.FC = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Session History & SQLite Pagination Control Bar */}
+      <div className="p-2.5 px-3 border-t border-[#1e2536] bg-[#121622] flex items-center justify-between text-xs font-mono">
+        <div className="flex items-center gap-2 text-gray-400">
+          <span>
+            Showing <strong className="text-white">{filtered.length}</strong> matching sweeps
+          </span>
+          <span className="text-gray-600">•</span>
+          <span>
+            <strong className="text-gray-300">{flowTrades.length}</strong> in buffer
+            {flowTotal > 0 && (
+              <> (Total session: <strong className="text-white">{flowTotal}</strong>)</>
+            )}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {hasMoreFlow ? (
+            <button
+              onClick={() => loadEarlierTrades()}
+              disabled={isFlowLoadingMore}
+              className="px-3 py-1 rounded bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50 text-[11px]"
+              title="Query earlier session options sweeps from SQLite archive"
+            >
+              {isFlowLoadingMore ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span>Loading morning prints...</span>
+                </>
+              ) : (
+                <>
+                  <History size={13} />
+                  <span>Load Earlier Session Sweeps (+250)</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <span className="text-[11px] text-gray-500 flex items-center gap-1">
+              <ShieldCheck size={12} className="text-emerald-500" />
+              Complete Day Session Loaded
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

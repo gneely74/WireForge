@@ -37,6 +37,9 @@ interface WireForgeState {
   // Real-Time Data Streams
   newsArticles: NewsArticle[];
   flowTrades: OptionsFlowTrade[];
+  flowTotal: number;
+  hasMoreFlow: boolean;
+  isFlowLoadingMore: boolean;
   signals: MarketSignal[];
   earnings: EarningsEvent[];
   economic: EconomicRelease[];
@@ -45,7 +48,9 @@ interface WireForgeState {
   // Data Setters / Ingestion
   setNewsArticles: (articles: NewsArticle[]) => void;
   prependNewsArticle: (article: NewsArticle) => void;
-  setFlowTrades: (trades: OptionsFlowTrade[]) => void;
+  setFlowTrades: (trades: OptionsFlowTrade[], total?: number) => void;
+  appendOlderFlowTrades: (trades: OptionsFlowTrade[]) => void;
+  loadEarlierTrades: () => Promise<void>;
   prependFlowTrade: (trade: OptionsFlowTrade) => void;
   setSignals: (signals: MarketSignal[]) => void;
   prependSignal: (signal: MarketSignal) => void;
@@ -72,27 +77,103 @@ interface WireForgeState {
   setFlowGoldenOnly: (val: boolean) => void;
 
   // Audio Squawk State
+  /**
+   * Master toggle for automated hands-free speech synthesis audio squawk.
+   * Initialized to false (muted by default) to avoid disruptive audio upon startup.
+   */
   squawkEnabled: boolean;
+  /**
+   * Sets the audio squawk enabled/muted state.
+   * When muted, immediately halts active speech synthesis and empties the audio playback queue.
+   * @param {boolean} enabled - Whether speech synthesis audio should be active.
+   * @returns {void}
+   */
   setSquawkEnabled: (enabled: boolean) => void;
+  /**
+   * Playback volume for speech synthesis (0.0 to 1.0).
+   */
   squawkVolume: number;
+  /**
+   * Sets playback volume for speech synthesis.
+   * @param {number} vol - Volume level between 0.0 and 1.0.
+   * @returns {void}
+   */
   setSquawkVolume: (vol: number) => void;
+  /**
+   * Speech rate / cadence multiplier (0.8 to 1.5).
+   */
   squawkRate: number;
+  /**
+   * Sets speech rate multiplier.
+   * @param {number} rate - Rate multiplier.
+   * @returns {void}
+   */
   setSquawkRate: (rate: number) => void;
+  /**
+   * URI of selected speech synthesis voice, or null for default system voice.
+   */
   selectedVoiceURI: string | null;
+  /**
+   * Sets selected speech synthesis voice URI.
+   * @param {string | null} uri - Selected voice URI.
+   * @returns {void}
+   */
   setSelectedVoiceURI: (uri: string | null) => void;
+  /**
+   * Category channels allowed to trigger audio announcements.
+   */
   squawkChannels: {
     news: boolean;
     flow: boolean;
     halts: boolean;
   };
+  /**
+   * Updates an individual squawk channel filter.
+   * @param {"news" | "flow" | "halts"} channel - Target channel identifier.
+   * @param {boolean} val - Whether channel audio is enabled.
+   * @returns {void}
+   */
   setSquawkChannel: (channel: "news" | "flow" | "halts", val: boolean) => void;
+  /**
+   * Pending queue of squawk messages awaiting speech synthesis.
+   */
   squawkQueue: SquawkMessage[];
+  /**
+   * Ingests a new squawk event.
+   * Preserves event in rolling visual squawk history (50 items) regardless of audio state.
+   * Enqueues for voice playback only if squawk is actively unmuted.
+   * @param {SquawkMessage} msg - Incoming squawk message.
+   * @returns {void}
+   */
   pushSquawkMessage: (msg: SquawkMessage) => void;
+  /**
+   * Pops the next squawk message from playback queue.
+   * @returns {SquawkMessage | undefined} Next message to speak, or undefined if queue empty.
+   */
   popSquawkMessage: () => SquawkMessage | undefined;
+  /**
+   * Visual audit log of the last 50 squawk messages received.
+   */
   squawkHistory: SquawkMessage[];
+  /**
+   * Whether the browser SpeechSynthesis engine is currently speaking an announcement.
+   */
   isSquawkPlaying: boolean;
+  /**
+   * Sets active speaking status indicator.
+   * @param {boolean} playing - True if audio is actively speaking.
+   * @returns {void}
+   */
   setIsSquawkPlaying: (playing: boolean) => void;
+  /**
+   * Whether the Squawk settings and history drawer modal is open.
+   */
   isSquawkDrawerOpen: boolean;
+  /**
+   * Toggles or sets the Squawk settings drawer modal visibility.
+   * @param {boolean} open - True to display modal drawer.
+   * @returns {void}
+   */
   setSquawkDrawerOpen: (open: boolean) => void;
 }
 
@@ -134,6 +215,9 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
 
   newsArticles: [],
   flowTrades: [],
+  flowTotal: 0,
+  hasMoreFlow: false,
+  isFlowLoadingMore: false,
   signals: [],
   earnings: [],
   economic: [],
@@ -145,11 +229,63 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
       newsArticles: [article, ...state.newsArticles.filter((a) => a.id !== article.id)].slice(0, 300),
     })),
 
-  setFlowTrades: (flowTrades) => set({ flowTrades }),
+  setFlowTrades: (flowTrades, total) =>
+    set((state) => {
+      const finalTotal = typeof total === "number" ? total : Math.max(state.flowTotal, flowTrades.length);
+      return {
+        flowTrades,
+        flowTotal: finalTotal,
+        hasMoreFlow: flowTrades.length < finalTotal,
+      };
+    }),
+
+  appendOlderFlowTrades: (olderTrades) =>
+    set((state) => {
+      const existingIds = new Set(state.flowTrades.map((t) => t.id));
+      const uniqueOlder = olderTrades.filter((t) => !existingIds.has(t.id));
+      const combined = [...state.flowTrades, ...uniqueOlder];
+      return {
+        flowTrades: combined,
+        hasMoreFlow: combined.length < state.flowTotal,
+      };
+    }),
+
+  loadEarlierTrades: async () => {
+    const state = get();
+    if (state.isFlowLoadingMore || !state.hasMoreFlow) return;
+    set({ isFlowLoadingMore: true });
+    try {
+      const offset = state.flowTrades.length;
+      const res = await fetch(`/v1/flow?offset=${offset}&limit=250`);
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+        const total = typeof json.total === "number" ? json.total : state.flowTotal;
+        const existingIds = new Set(get().flowTrades.map((t) => t.id));
+        const uniqueOlder = (json.data as OptionsFlowTrade[]).filter((t) => !existingIds.has(t.id));
+        const newCombined = [...get().flowTrades, ...uniqueOlder];
+        set({
+          flowTrades: newCombined,
+          flowTotal: Math.max(total, newCombined.length),
+          hasMoreFlow: newCombined.length < total,
+        });
+      } else {
+        set({ hasMoreFlow: false });
+      }
+    } catch (err) {
+      console.error("[WireForgeStore] Failed to load earlier trades:", err);
+    } finally {
+      set({ isFlowLoadingMore: false });
+    }
+  },
+
   prependFlowTrade: (trade) =>
-    set((state) => ({
-      flowTrades: [trade, ...state.flowTrades.filter((t) => t.id !== trade.id)].slice(0, 1000),
-    })),
+    set((state) => {
+      const filtered = state.flowTrades.filter((t) => t.id !== trade.id);
+      return {
+        flowTrades: [trade, ...filtered].slice(0, 5000),
+        flowTotal: state.flowTotal + 1,
+      };
+    }),
 
   setSignals: (signals) => set({ signals }),
   prependSignal: (signal) =>
@@ -179,8 +315,13 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   setFlowGoldenOnly: (flowGoldenOnly) => set({ flowGoldenOnly }),
 
   // Audio Squawk
-  squawkEnabled: true,
-  setSquawkEnabled: (squawkEnabled) => set({ squawkEnabled }),
+  squawkEnabled: false,
+  setSquawkEnabled: (squawkEnabled) => {
+    if (!squawkEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    set({ squawkEnabled, squawkQueue: squawkEnabled ? get().squawkQueue : [] });
+  },
   squawkVolume: 0.85,
   setSquawkVolume: (squawkVolume) => set({ squawkVolume }),
   squawkRate: 1.05,
@@ -199,7 +340,7 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   squawkQueue: [],
   pushSquawkMessage: (msg) =>
     set((state) => ({
-      squawkQueue: [...state.squawkQueue, msg],
+      squawkQueue: state.squawkEnabled ? [...state.squawkQueue, msg] : [],
       squawkHistory: [msg, ...state.squawkHistory].slice(0, 50),
     })),
   popSquawkMessage: () => {

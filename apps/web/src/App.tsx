@@ -86,10 +86,10 @@ export const App: React.FC = () => {
       .catch((err) => console.error("Failed to load initial news:", err));
 
     // 2. Fetch Options Flow
-    fetch("/v1/flow")
+    fetch("/v1/flow?limit=500")
       .then((res) => res.json())
       .then((data) => {
-        if (data.data) setFlowTrades(data.data);
+        if (data.data) setFlowTrades(data.data, data.total);
       })
       .catch((err) => console.error("Failed to load initial flow:", err));
 
