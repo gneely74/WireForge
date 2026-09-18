@@ -77,8 +77,8 @@ export const App: React.FC = () => {
       })
       .catch((err) => console.error("Failed to load initial watchlists:", err));
 
-    // 1. Fetch News
-    fetch("/v1/news")
+    // 1. Fetch News (Load 250 authentic articles for instant stream population)
+    fetch("/v1/news?limit=250")
       .then((res) => res.json())
       .then((data) => {
         if (data.data) setNewsArticles(data.data);

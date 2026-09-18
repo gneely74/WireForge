@@ -61,6 +61,35 @@ interface WireForgeState {
   // Filters — News
   newsCategory: NewsCategory;
   setNewsCategory: (cat: NewsCategory) => void;
+  /**
+   * Positively whitelisted categories. If non-empty, only articles matching one of these are displayed.
+   */
+  includedCategories: NewsCategory[];
+  /**
+   * Negatively blacklisted categories. Articles matching these categories are suppressed.
+   */
+  excludedCategories: NewsCategory[];
+  /**
+   * Negatively blacklisted tickers. Articles referencing these tickers are suppressed.
+   */
+  excludedTickers: string[];
+  /**
+   * Toggles positive inclusion, negative exclusion, or cycles state for a category.
+   *
+   * @param {NewsCategory} category - Target news category.
+   * @param {"include" | "exclude" | "cycle"} [mode="cycle"] - Action mode.
+   */
+  toggleCategoryFilter: (category: NewsCategory, mode?: "include" | "exclude" | "cycle") => void;
+  /**
+   * Toggles suppression of a specific ticker from the news feed.
+   *
+   * @param {string} ticker - Target ticker symbol to suppress or unsuppress.
+   */
+  toggleExcludeTicker: (ticker: string) => void;
+  /**
+   * Resets all category inclusions, exclusions, ticker suppressions, and search terms.
+   */
+  clearNewsFilters: () => void;
   newsSearchQuery: string;
   setNewsSearchQuery: (q: string) => void;
   newsTickerFilter: string;
@@ -226,7 +255,7 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   setNewsArticles: (newsArticles) => set({ newsArticles }),
   prependNewsArticle: (article) =>
     set((state) => ({
-      newsArticles: [article, ...state.newsArticles.filter((a) => a.id !== article.id)].slice(0, 300),
+      newsArticles: [article, ...state.newsArticles.filter((a) => a.id !== article.id)].slice(0, 500),
     })),
 
   setFlowTrades: (flowTrades, total) =>
@@ -299,7 +328,76 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
 
   // Filters
   newsCategory: "all",
-  setNewsCategory: (newsCategory) => set({ newsCategory }),
+  includedCategories: [],
+  excludedCategories: [],
+  excludedTickers: [],
+  setNewsCategory: (newsCategory) =>
+    set((state) => {
+      if (newsCategory === "all") {
+        return { newsCategory: "all", includedCategories: [], excludedCategories: [] };
+      }
+      return {
+        newsCategory,
+        includedCategories: [newsCategory],
+        excludedCategories: state.excludedCategories.filter((c) => c !== newsCategory),
+      };
+    }),
+  toggleCategoryFilter: (category, mode = "cycle") =>
+    set((state) => {
+      if (category === "all") {
+        return { newsCategory: "all", includedCategories: [], excludedCategories: [] };
+      }
+      const inc = new Set(state.includedCategories);
+      const exc = new Set(state.excludedCategories);
+
+      if (mode === "cycle") {
+        // Neutral -> Include (+) -> Exclude (-) -> Neutral
+        if (!inc.has(category) && !exc.has(category)) {
+          inc.add(category);
+        } else if (inc.has(category)) {
+          inc.delete(category);
+          exc.add(category);
+        } else {
+          exc.delete(category);
+        }
+      } else if (mode === "include") {
+        exc.delete(category);
+        if (inc.has(category)) inc.delete(category);
+        else inc.add(category);
+      } else if (mode === "exclude") {
+        inc.delete(category);
+        if (exc.has(category)) exc.delete(category);
+        else exc.add(category);
+      }
+
+      const nextInc = Array.from(inc);
+      const nextExc = Array.from(exc);
+      return {
+        includedCategories: nextInc,
+        excludedCategories: nextExc,
+        newsCategory:
+          nextInc.length === 1 ? nextInc[0] : nextInc.length === 0 ? "all" : state.newsCategory,
+      };
+    }),
+  toggleExcludeTicker: (ticker) =>
+    set((state) => {
+      const sym = ticker.toUpperCase().replace("$", "").trim();
+      if (!sym) return state;
+      const existing = state.excludedTickers;
+      if (existing.includes(sym)) {
+        return { excludedTickers: existing.filter((t) => t !== sym) };
+      }
+      return { excludedTickers: [...existing, sym] };
+    }),
+  clearNewsFilters: () =>
+    set({
+      newsCategory: "all",
+      includedCategories: [],
+      excludedCategories: [],
+      excludedTickers: [],
+      newsSearchQuery: "",
+      newsTickerFilter: "",
+    }),
   newsSearchQuery: "",
   setNewsSearchQuery: (newsSearchQuery) => set({ newsSearchQuery }),
   newsTickerFilter: "",

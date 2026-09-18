@@ -51,6 +51,18 @@ describe("WireForge Backend API Test Suite", () => {
     const body = await res.json();
     expect(body.data.every((a: any) => a.category === "sec")).toBe(true);
     expect(body.data.some((a: any) => a.title === testArticle.title)).toBe(true);
+
+    // Negative filtering: exclude "sec" should NOT contain testArticle
+    const resExclude = await app.request("/v1/news?excludeCategories=sec");
+    expect(resExclude.status).toBe(200);
+    const bodyExclude = await resExclude.json();
+    expect(bodyExclude.data.every((a: any) => a.category !== "sec")).toBe(true);
+
+    // Negative ticker filtering: exclude "NVDA" should NOT contain NVDA articles
+    const resExcludeTicker = await app.request("/v1/news?excludeTickers=NVDA");
+    expect(resExcludeTicker.status).toBe(200);
+    const bodyExcludeTicker = await resExcludeTicker.json();
+    expect(bodyExcludeTicker.data.every((a: any) => !a.tickers.includes("NVDA"))).toBe(true);
   });
 
   it("GET /v1/news/stats returns news counts and deduplication stats", async () => {

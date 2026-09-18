@@ -13,11 +13,12 @@ export class StockTwitsService {
     this.startPoller();
   }
 
+  /**
+   * Starts recurring poller, triggering an initial fetch immediately on startup.
+   */
   private startPoller() {
-    // Initial fetch after 2s
-    setTimeout(() => {
-      this.pollTrendingStream().catch(() => {});
-    }, 2000);
+    // Initial fetch immediately on startup without artificial delay
+    this.pollTrendingStream().catch(() => {});
 
     // Recurring poll every 60 seconds
     this.pollerTimer = setInterval(() => {
