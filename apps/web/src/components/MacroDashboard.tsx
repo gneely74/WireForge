@@ -149,6 +149,43 @@ export const MacroDashboard: React.FC = () => {
         ))}
       </div>
 
+      {/* Macro Regime Transmission & Options Posture Card */}
+      {regime && (
+        <div className="p-4 rounded-xl bg-[#0f1420] border border-[#20283b] flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs shadow-sm">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-white flex items-center gap-1.5">
+                <span>🏛️ Fed Transmission Bias:</span>
+              </span>
+              <span className="text-blue-400 font-medium">{regime.transmission_bias}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-gray-400 text-[11px] pt-1">
+              <div>
+                <span className="text-emerald-400 font-semibold">✓ Favored: </span>
+                <span>{regime.favored_sectors.slice(0, 2).join(", ")}</span>
+              </div>
+              <span>•</span>
+              <div>
+                <span className="text-rose-400 font-semibold">⚠️ Vulnerable: </span>
+                <span>{regime.vulnerable_sectors.slice(0, 2).join(", ")}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="md:border-l md:border-[#20283b] md:pl-5 flex flex-col items-start md:items-end justify-center min-w-[240px]">
+            <div className="text-[10px] uppercase font-mono tracking-wider text-gray-400">
+              BPS Options Strategy Guideline
+            </div>
+            <div className="text-xs font-bold text-amber-400 mt-0.5">
+              CONDITIONAL NORMAL (Q3)
+            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5">
+              Δ ≤ 0.10 • Anchor below Put Wall • 50% profit target
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-1 border-b border-[#1f283d] pb-px overflow-x-auto text-xs font-semibold">
         <button
