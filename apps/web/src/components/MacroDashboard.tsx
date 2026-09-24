@@ -106,7 +106,7 @@ export const MacroDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0a0d14] text-[#d1d4dc] overflow-y-auto p-4 md:p-6 space-y-6">
+    <div className="flex-1 h-full bg-[#0a0d14] text-[#d1d4dc] overflow-y-auto p-4 md:p-6 space-y-6">
       
       {/* Header & Regime Status Banner */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-xl bg-[#0f1420] border border-[#20283b] shadow-lg">
@@ -218,11 +218,11 @@ export const MacroDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-1 border-b border-[#1f283d] pb-px overflow-x-auto text-xs font-semibold">
+      {/* Navigation Sub-Tabs (Sticky & Guaranteed Minimum Height) */}
+      <div className="sticky top-0 z-20 bg-[#0a0d14]/95 backdrop-blur-md pt-2 pb-px border-b border-[#1f283d] flex items-center gap-1 overflow-x-auto text-xs font-semibold shrink-0 min-h-[42px]">
         <button
           onClick={() => setActiveSection("fed")}
-          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
             activeSection === "fed"
               ? "border-blue-500 text-blue-400"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -233,7 +233,7 @@ export const MacroDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveSection("growth")}
-          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
             activeSection === "growth"
               ? "border-blue-500 text-blue-400"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -244,7 +244,7 @@ export const MacroDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveSection("global")}
-          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
             activeSection === "global"
               ? "border-blue-500 text-blue-400"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -255,7 +255,7 @@ export const MacroDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveSection("stablecoins")}
-          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
             activeSection === "stablecoins"
               ? "border-cyan-500 text-cyan-400"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -267,7 +267,7 @@ export const MacroDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveSection("matrix")}
-          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
             activeSection === "matrix"
               ? "border-blue-500 text-blue-400"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -278,7 +278,7 @@ export const MacroDashboard: React.FC = () => {
 
         <button
           onClick={() => setActiveSection("council")}
-          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
             activeSection === "council"
               ? "border-blue-500 text-blue-400"
               : "border-transparent text-gray-400 hover:text-gray-200"
