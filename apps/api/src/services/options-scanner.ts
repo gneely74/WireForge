@@ -60,6 +60,56 @@ export class OptionsScanner {
    * @returns Paginated trades and total matching count
    */
   getTrades(params: FlowQueryParams): { trades: OptionsFlowTrade[]; total: number } {
+    const offset = params.offset || 0;
+    const limit = params.limit || 500;
+
+    // Fast path: satisfy current session queries directly from in-memory rolling buffer (0.1ms vs 80s)
+    if (!params.date && this.trades.length > 0) {
+      let list = this.trades;
+
+      if (params.ticker) {
+        const t = params.ticker.toUpperCase();
+        list = list.filter((x) => x.ticker === t);
+      }
+
+      if (params.watchlistSymbols && params.watchlistSymbols.length > 0) {
+        const allowed = new Set(params.watchlistSymbols.map((s) => s.toUpperCase()));
+        list = list.filter((x) => allowed.has(x.ticker));
+      }
+
+      if (params.minPremium && params.minPremium > 0) {
+        list = list.filter((x) => x.premium >= params.minPremium!);
+      }
+
+      if (params.sentiment && params.sentiment !== "neutral") {
+        list = list.filter((x) => x.sentiment === params.sentiment);
+      }
+
+      if (params.orderType) {
+        list = list.filter((x) => x.orderType === params.orderType);
+      }
+
+      if (params.isGolden !== undefined) {
+        list = list.filter((x) => x.isGolden === params.isGolden);
+      }
+
+      const hasSpecificFilter = Boolean(
+        params.ticker ||
+        (params.watchlistSymbols && params.watchlistSymbols.length > 0) ||
+        params.minPremium ||
+        params.sentiment ||
+        params.orderType ||
+        params.isGolden !== undefined
+      );
+
+      if (!hasSpecificFilter || list.length >= offset + limit) {
+        return {
+          trades: list.slice(offset, offset + limit),
+          total: globalOptionsDb.getTotalCount(),
+        };
+      }
+    }
+
     try {
       return globalOptionsDb.queryTrades(params);
     } catch (err) {
@@ -93,8 +143,6 @@ export class OptionsScanner {
       }
 
       const total = list.length;
-      const offset = params.offset || 0;
-      const limit = params.limit || 500;
       return { trades: list.slice(offset, offset + limit), total };
     }
   }

@@ -160,8 +160,35 @@ if (resolvedWebDist) {
     return c.notFound();
   });
 
+  // Immutable caching for hashed Vite assets
+  app.use("/assets/*", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+  });
+
   app.use("/*", serveStatic({ root: relDist }));
-  app.get("*", serveStatic({ path: path.join(relDist, "index.html") }));
+
+  // In-memory cache for SPA index.html to avoid disk seeks under heavy load
+  let cachedIndexHtml: string | null = null;
+  const indexPath = path.join(resolvedWebDist, "index.html");
+  if (fs.existsSync(indexPath)) {
+    try {
+      cachedIndexHtml = fs.readFileSync(indexPath, "utf-8");
+    } catch {}
+  }
+
+  app.get("*", (c) => {
+    if (!cachedIndexHtml && fs.existsSync(indexPath)) {
+      try {
+        cachedIndexHtml = fs.readFileSync(indexPath, "utf-8");
+      } catch {}
+    }
+    if (cachedIndexHtml) {
+      c.header("Cache-Control", "no-cache, must-revalidate");
+      return c.html(cachedIndexHtml);
+    }
+    return c.notFound();
+  });
 } else {
   // Fallback API info at root when static workstation is not pre-built
   app.get("/", (c) => {

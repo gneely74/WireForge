@@ -58,8 +58,8 @@ export const App: React.FC = () => {
     // 3. Tab Focus listener: automatically re-sync when trader switches or focuses tab
     window.addEventListener("focus", refreshWatchlists);
 
-    // 4. Background periodic poller (every 4s) ensuring state stays synchronized across ports
-    const interval = setInterval(refreshWatchlists, 4000);
+    // 4. Background periodic poller (every 12s) ensuring state stays synchronized across ports
+    const interval = setInterval(refreshWatchlists, 12000);
 
     return () => {
       symbolChannel?.close();
@@ -71,7 +71,7 @@ export const App: React.FC = () => {
 
   // Initial Data Bootstrap
   useEffect(() => {
-    // 0. Fetch Shared Watchlists
+    // 0. Fetch Initial Watchlists
     fetch("/v1/watchlists")
       .then((res) => res.json())
       .then((data) => {
@@ -111,7 +111,7 @@ export const App: React.FC = () => {
       })
       .catch((err) => console.error("Failed to load ecosystem health:", err));
 
-    // Periodic ecosystem refresh
+    // Periodic ecosystem refresh (every 30s)
     const timer = setInterval(() => {
       fetch("/v1/ecosystem/status")
         .then((res) => res.json())
@@ -119,7 +119,7 @@ export const App: React.FC = () => {
           if (data.data) setEcosystemHealth(data.data);
         })
         .catch(() => {});
-    }, 15000);
+    }, 30000);
 
     return () => clearInterval(timer);
   }, [setWatchlists, setNewsArticles, setFlowTrades, setSignals, setEcosystemHealth]);

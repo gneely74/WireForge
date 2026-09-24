@@ -27,6 +27,7 @@ export interface FlowStatsResult {
 export class OptionsDb {
   private db: DatabaseSync;
   private insertStmt: ReturnType<DatabaseSync["prepare"]>;
+  private totalCount: number = 0;
 
   constructor(dbFilePath?: string) {
     const isTest = process.env.NODE_ENV === "test" || Boolean(process.env.VITEST);
@@ -49,6 +50,7 @@ export class OptionsDb {
     }
 
     this.initSchema();
+    this.initTotalCount();
     this.insertStmt = this.db.prepare(`
       INSERT OR IGNORE INTO options_flow (
         id, ticker, expiration, strike, contract_type, spot_price,
@@ -62,6 +64,19 @@ export class OptionsDb {
         ?, ?, ?
       )
     `);
+  }
+
+  private initTotalCount() {
+    try {
+      const maxRow: any = this.db.prepare("SELECT MAX(_rowid_) as max_id FROM options_flow").get();
+      this.totalCount = Number(maxRow?.max_id) || 0;
+    } catch {
+      this.totalCount = 0;
+    }
+  }
+
+  getTotalCount(): number {
+    return this.totalCount;
   }
 
   private initSchema() {
@@ -149,6 +164,7 @@ export class OptionsDb {
         timeStr,
         tradeDate
       );
+      this.totalCount++;
       return true;
     } catch (err) {
       console.error("[OptionsDb] insert error:", err);
@@ -198,10 +214,15 @@ export class OptionsDb {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
-    // Count total matching
-    const countQuery = `SELECT COUNT(*) as total FROM options_flow ${whereSql}`;
-    const countRow: any = this.db.prepare(countQuery).get(...values);
-    const total = countRow ? Number(countRow.total) : 0;
+    // Count total matching (O(1) fast path if unfiltered)
+    let total = 0;
+    if (whereClauses.length === 0) {
+      total = this.totalCount;
+    } else {
+      const countQuery = `SELECT COUNT(*) as total FROM options_flow ${whereSql}`;
+      const countRow: any = this.db.prepare(countQuery).get(...values);
+      total = countRow ? Number(countRow.total) : 0;
+    }
 
     // Fetch paginated rows
     const limit = Math.min(Math.max(params.limit || 100, 1), 1000);
@@ -298,6 +319,7 @@ export class OptionsDb {
     try {
       const cutoffDate = new Date(Date.now() - keepDays * 86400000).toISOString().slice(0, 10);
       this.db.prepare("DELETE FROM options_flow WHERE trade_date < ?").run(cutoffDate);
+      this.initTotalCount();
     } catch (err) {
       console.error("[OptionsDb] prune error:", err);
     }
