@@ -23,11 +23,16 @@ import {
   DollarSign,
   Landmark,
   Info,
+  HelpCircle,
   ExternalLink,
   ChevronRight,
   RefreshCw,
 } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
+import {
+  StablecoinExplainerModal,
+  StablecoinExplainerPayload,
+} from "./StablecoinExplainerModal.js";
 
 interface StablecoinAssetItem {
   id: string;
@@ -92,6 +97,8 @@ export const StablecoinStatusCard: React.FC = () => {
     y: number;
     point: StablecoinHistoryPoint;
   } | null>(null);
+
+  const [explainerPayload, setExplainerPayload] = useState<StablecoinExplainerPayload | null>(null);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -391,66 +398,110 @@ export const StablecoinStatusCard: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Hero KPI Cards */}
+      {/* 2. Hero KPI Cards (Clickable Explanations) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Total Market Cap */}
-        <div className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42]">
+        <div
+          onClick={() => setExplainerPayload({ topicId: "total_market_cap" })}
+          className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42] hover:border-cyan-500/50 hover:bg-[#161f33] transition-all cursor-pointer group shadow-sm"
+          title="Click to inspect Total Market Cap breakdown"
+        >
           <div className="flex items-center justify-between text-[11px] text-gray-400 font-mono">
-            <span>Total Market Cap</span>
-            <DollarSign size={13} className="text-cyan-400" />
+            <span className="group-hover:text-cyan-300 transition-colors">Total Market Cap</span>
+            <div className="flex items-center gap-1.5">
+              <DollarSign size={13} className="text-cyan-400" />
+              <HelpCircle size={12} className="text-gray-500 group-hover:text-cyan-400 transition-colors" />
+            </div>
           </div>
-          <div className="text-xl font-bold text-white font-mono mt-1">
+          <div className="text-xl font-bold text-white font-mono mt-1 group-hover:text-cyan-300 transition-colors">
             {data?.summary.totalCirculatingDisplay || "$310.9B"}
           </div>
-          <div className="flex items-center gap-1 text-[11px] font-mono mt-1 text-emerald-400">
-            <TrendingUp size={12} />
-            <span>
-              {data ? `${data.summary.change30dPct >= 0 ? "+" : ""}${data.summary.change30dPct.toFixed(1)}% (30d)` : "+0.8% (30d)"}
+          <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
+            <div className="flex items-center gap-1 text-emerald-400">
+              <TrendingUp size={12} />
+              <span>
+                {data ? `${data.summary.change30dPct >= 0 ? "+" : ""}${data.summary.change30dPct.toFixed(1)}% (30d)` : "+0.8% (30d)"}
+              </span>
+            </div>
+            <span className="text-[10px] text-cyan-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Explain ➔
             </span>
           </div>
         </div>
 
         {/* 24H Net Mint/Burn Flow */}
-        <div className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42]">
+        <div
+          onClick={() => setExplainerPayload({ topicId: "supply_flow_24h" })}
+          className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42] hover:border-blue-500/50 hover:bg-[#161f33] transition-all cursor-pointer group shadow-sm"
+          title="Click to inspect 24H Net Supply Flow & Velocity signals"
+        >
           <div className="flex items-center justify-between text-[11px] text-gray-400 font-mono">
-            <span>24H Net Supply Flow</span>
-            <Activity size={13} className="text-blue-400" />
+            <span className="group-hover:text-blue-300 transition-colors">24H Net Supply Flow</span>
+            <div className="flex items-center gap-1.5">
+              <Activity size={13} className="text-blue-400" />
+              <HelpCircle size={12} className="text-gray-500 group-hover:text-blue-400 transition-colors" />
+            </div>
           </div>
-          <div className="text-xl font-bold text-white font-mono mt-1">
+          <div className="text-xl font-bold text-white font-mono mt-1 group-hover:text-blue-300 transition-colors">
             {data
               ? `${data.summary.change1dUsd >= 0 ? "+" : ""}$${Math.abs(Math.round(data.summary.change1dUsd / 1e6))}M`
               : "+$320M"}
           </div>
-          <div className="text-[11px] text-gray-400 font-mono mt-1">
-            {data ? `${data.summary.change1dPct >= 0 ? "+" : ""}${data.summary.change1dPct.toFixed(2)}% net velocity` : "+0.10% net"}
+          <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
+            <span className="text-gray-400">
+              {data ? `${data.summary.change1dPct >= 0 ? "+" : ""}${data.summary.change1dPct.toFixed(2)}% velocity` : "+0.10% net"}
+            </span>
+            <span className="text-[10px] text-blue-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Explain ➔
+            </span>
           </div>
         </div>
 
         {/* U.S. T-Bill Absorption */}
-        <div className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42]">
+        <div
+          onClick={() => setExplainerPayload({ topicId: "tbill_absorption" })}
+          className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42] hover:border-amber-500/50 hover:bg-[#161f33] transition-all cursor-pointer group shadow-sm"
+          title="Click to inspect U.S. Treasury Bill Absorption & Sovereign Holder mechanics"
+        >
           <div className="flex items-center justify-between text-[11px] text-gray-400 font-mono">
-            <span>T-Bill Absorption</span>
-            <Landmark size={13} className="text-amber-400" />
+            <span className="group-hover:text-amber-300 transition-colors">T-Bill Absorption</span>
+            <div className="flex items-center gap-1.5">
+              <Landmark size={13} className="text-amber-400" />
+              <HelpCircle size={12} className="text-gray-500 group-hover:text-amber-400 transition-colors" />
+            </div>
           </div>
-          <div className="text-xl font-bold text-white font-mono mt-1">
+          <div className="text-xl font-bold text-white font-mono mt-1 group-hover:text-amber-300 transition-colors">
             {data?.summary.estimatedTBillHoldingsDisplay || "$240.5B"}
           </div>
-          <div className="text-[11px] text-amber-400/90 font-mono mt-1 truncate">
-            Top 15 Global Sovereign Holder
+          <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
+            <span className="text-amber-400/90 truncate">Top 15 Global Sovereign Holder</span>
+            <span className="text-[10px] text-amber-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Explain ➔
+            </span>
           </div>
         </div>
 
         {/* Peg Health Score */}
-        <div className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42]">
+        <div
+          onClick={() => setExplainerPayload({ topicId: "peg_health" })}
+          className="p-3.5 rounded-xl bg-[#141a29] border border-[#222c42] hover:border-emerald-500/50 hover:bg-[#161f33] transition-all cursor-pointer group shadow-sm"
+          title="Click to inspect Peg Health Index & Basis Point Deviation rules"
+        >
           <div className="flex items-center justify-between text-[11px] text-gray-400 font-mono">
-            <span>Peg Health Index</span>
-            <ShieldCheck size={13} className="text-emerald-400" />
+            <span className="group-hover:text-emerald-300 transition-colors">Peg Health Index</span>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck size={13} className="text-emerald-400" />
+              <HelpCircle size={12} className="text-gray-500 group-hover:text-emerald-400 transition-colors" />
+            </div>
           </div>
-          <div className="text-xl font-bold text-emerald-400 font-mono mt-1">
+          <div className="text-xl font-bold text-emerald-400 font-mono mt-1 group-hover:text-emerald-300 transition-colors">
             {data ? `${data.summary.pegHealthScore}% Pristine` : "100% Pristine"}
           </div>
-          <div className="text-[11px] text-gray-400 font-mono mt-1">
-            0 de-peg alerts across top 10
+          <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
+            <span className="text-gray-400">0 de-peg alerts across top 10</span>
+            <span className="text-[10px] text-emerald-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
+              Explain ➔
+            </span>
           </div>
         </div>
       </div>
@@ -458,10 +509,18 @@ export const StablecoinStatusCard: React.FC = () => {
       {/* 3. Interactive Multi-Timeframe Chart */}
       <div className="flex flex-col space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <span className="text-xs font-bold text-gray-200">Historical Total Supply ($B)</span>
-            <span className="text-[10px] text-gray-500 font-mono">
-              Hover cursor along curve to inspect historical data points
+            <button
+              onClick={() => setExplainerPayload({ topicId: "historical_supply_chart" })}
+              className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-colors"
+              title="Click to inspect macro cycle explanation and historical regimes"
+            >
+              <HelpCircle size={11} />
+              <span>Explain Chart</span>
+            </button>
+            <span className="text-[10px] text-gray-500 font-mono hidden md:inline">
+              Hover along curve to inspect data points
             </span>
           </div>
 
@@ -619,21 +678,38 @@ export const StablecoinStatusCard: React.FC = () => {
 
       {/* 4. Asset Dominance Distribution Bar */}
       {data?.assets && data.assets.length > 0 && (
-        <div className="flex flex-col space-y-2">
+        <div
+          onClick={() => setExplainerPayload({ topicId: "market_share_dominance" })}
+          className="flex flex-col space-y-2 p-3 rounded-xl bg-[#141a29]/60 border border-[#222c42] hover:border-cyan-500/40 hover:bg-[#161f33]/70 transition-all cursor-pointer group"
+          title="Click to inspect Stablecoin Market Share Dominance & Duopoly analysis"
+        >
           <div className="flex items-center justify-between text-xs font-mono text-gray-400">
-            <span className="font-semibold text-gray-300">Stablecoin Market Share Distribution</span>
-            <span>Total: {data.summary.totalCirculatingDisplay}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-200 group-hover:text-cyan-300 transition-colors">
+                Stablecoin Market Share Distribution
+              </span>
+              <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <HelpCircle size={10} />
+                <span>Explain Share</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>Total: {data.summary.totalCirculatingDisplay}</span>
+              <span className="text-[10px] text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                Explain ➔
+              </span>
+            </div>
           </div>
 
           {/* Segmented Bar */}
-          <div className="h-3 w-full rounded-full bg-[#182133] overflow-hidden flex">
+          <div className="h-3 w-full rounded-full bg-[#182133] overflow-hidden flex shadow-inner">
             {data.assets.slice(0, 6).map((asset) => {
               const color = DOMINANCE_COLORS[asset.symbol] || "#64748b";
               return (
                 <div
                   key={asset.id}
                   style={{ width: `${Math.max(asset.dominancePct, 1.5)}%`, backgroundColor: color }}
-                  className="h-full hover:opacity-80 transition-opacity cursor-pointer relative group"
+                  className="h-full hover:opacity-80 transition-opacity relative group"
                   title={`${asset.name} (${asset.symbol}): ${asset.dominancePct}% ($${(asset.circulatingUsd / 1e9).toFixed(1)}B)`}
                 />
               );
@@ -658,15 +734,23 @@ export const StablecoinStatusCard: React.FC = () => {
 
       {/* 5. Live Peg Stability & De-peg Radar Table */}
       <div className="flex flex-col space-y-2.5 pt-2 border-t border-[#1b2336]">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} className="text-emerald-400" />
             <span className="text-xs font-bold text-white tracking-wide">
               Top Asset Peg Stability &amp; Flow Radar
             </span>
+            <button
+              onClick={() => setExplainerPayload({ topicId: "peg_health" })}
+              className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
+              title="Click to inspect Peg Health Index & Basis Point Deviation rules"
+            >
+              <HelpCircle size={11} />
+              <span>Explain Pegs</span>
+            </button>
           </div>
           <span className="text-[10px] text-gray-400 font-mono">
-            Threshold: ±15 bps (Normal) • &gt;50 bps (Alert)
+            Click any row or &quot;Inspect&quot; button for detailed asset reserves &amp; stress history
           </span>
         </div>
 
@@ -682,6 +766,7 @@ export const StablecoinStatusCard: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Circulating</th>
                 <th className="py-2.5 px-3 text-right">Share</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
+                <th className="py-2.5 px-3 text-center">Inspect</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#182133] text-gray-300">
@@ -690,13 +775,18 @@ export const StablecoinStatusCard: React.FC = () => {
                 const absDev = Math.abs(asset.pegDeviationBps);
 
                 return (
-                  <tr key={asset.id} className="hover:bg-[#141b2b] transition-colors">
+                  <tr
+                    key={asset.id}
+                    onClick={() => setExplainerPayload({ topicId: "asset_detail", asset })}
+                    className="hover:bg-[#162035] transition-colors cursor-pointer group"
+                    title={`Click to inspect ${asset.name} (${asset.symbol}) collateral, reserves, and stress test breakdown`}
+                  >
                     <td className="py-2 px-3 font-bold text-white flex items-center gap-1.5">
                       <span
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: DOMINANCE_COLORS[asset.symbol] || "#94a3b8" }}
                       />
-                      <span>{asset.symbol}</span>
+                      <span className="group-hover:text-cyan-300 transition-colors">{asset.symbol}</span>
                       <span className="text-[10px] text-gray-500 font-normal hidden sm:inline">
                         {asset.name}
                       </span>
@@ -752,6 +842,11 @@ export const StablecoinStatusCard: React.FC = () => {
                         {asset.status}
                       </span>
                     </td>
+                    <td className="py-2 px-3 text-center">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 group-hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 transition-all inline-flex items-center gap-0.5">
+                        Inspect ➔
+                      </span>
+                    </td>
                   </tr>
                 );
               })}
@@ -777,6 +872,12 @@ export const StablecoinStatusCard: React.FC = () => {
         </div>
         <ChevronRight size={14} className="text-cyan-400 flex-shrink-0" />
       </div>
+
+      {/* Explainer Modal */}
+      <StablecoinExplainerModal
+        payload={explainerPayload}
+        onClose={() => setExplainerPayload(null)}
+      />
     </div>
   );
 };
