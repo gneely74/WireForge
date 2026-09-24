@@ -15,8 +15,14 @@ import {
 
 interface WireForgeState {
   // Navigation & Layout
-  activeTab: "split" | "news" | "flow" | "signals" | "calendars";
-  setActiveTab: (tab: "split" | "news" | "flow" | "signals" | "calendars") => void;
+  activeTab: "split" | "news" | "flow" | "signals" | "calendars" | "macro";
+  setActiveTab: (tab: "split" | "news" | "flow" | "signals" | "calendars" | "macro") => void;
+
+  // Macro Deep-Dive Modal
+  selectedMacroIndicator: string | null;
+  setSelectedMacroIndicator: (indicatorId: string | null) => void;
+  isMacroModalOpen: boolean;
+  setIsMacroModalOpen: (open: boolean) => void;
 
   // Shared Watchlists
   watchlists: Watchlist[];
@@ -209,6 +215,11 @@ interface WireForgeState {
 export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   activeTab: "split",
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  selectedMacroIndicator: null,
+  setSelectedMacroIndicator: (selectedMacroIndicator) => set({ selectedMacroIndicator }),
+  isMacroModalOpen: false,
+  setIsMacroModalOpen: (isMacroModalOpen) => set({ isMacroModalOpen }),
 
   watchlists: PRESET_WATCHLISTS,
   setWatchlists: (watchlists) => set({ watchlists }),

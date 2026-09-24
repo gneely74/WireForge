@@ -14,6 +14,7 @@ import {
   Globe,
   Check,
   Layers,
+  BarChart3,
 } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { useAudioSquawk } from "../hooks/useAudioSquawk.js";
@@ -284,6 +285,18 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
           >
             <Calendar size={13} />
             <span>Calendars</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("macro")}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded font-medium transition-colors ${
+              activeTab === "macro"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <BarChart3 size={13} />
+            <span>Macro & Fed</span>
           </button>
         </div>
 

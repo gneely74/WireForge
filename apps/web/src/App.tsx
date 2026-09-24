@@ -8,6 +8,8 @@ import { AudioSquawk } from "./components/AudioSquawk.js";
 import { MiniChartModal } from "./components/MiniChartModal.js";
 import { ArticleModal } from "./components/ArticleModal.js";
 import { WatchlistManagerModal } from "./components/WatchlistManagerModal.js";
+import { MacroDashboard } from "./components/MacroDashboard.js";
+import { MacroDeepDiveModal } from "./components/MacroDeepDiveModal.js";
 import { useWireWebSocket } from "./hooks/useWireWebSocket.js";
 import { useWireForgeStore } from "./store/wireforge-store.js";
 
@@ -159,6 +161,12 @@ export const App: React.FC = () => {
             <CorporateCalendar />
           </div>
         )}
+
+        {activeTab === "macro" && (
+          <div className="flex-1 h-full overflow-hidden">
+            <MacroDashboard />
+          </div>
+        )}
       </main>
 
       {/* Modals and Overlays */}
@@ -166,6 +174,7 @@ export const App: React.FC = () => {
       <MiniChartModal />
       <ArticleModal />
       <WatchlistManagerModal />
+      <MacroDeepDiveModal />
     </div>
   );
 };
