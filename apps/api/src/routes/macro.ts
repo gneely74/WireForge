@@ -172,6 +172,19 @@ macroRouter.get("/indicators", async (c) => {
         percentile_10y: 42.0,
         status: "caution",
         direction: "falling"
+      },
+      {
+        id: "stablecoin_supply",
+        name: "Stablecoin Supply & T-Bill Absorption",
+        category: "global_macro",
+        current_value: 192.4,
+        display_value: "$192.4B",
+        unit: "Billion USD",
+        change_3m: 18.6,
+        change_3m_display: "+$18.6B (+10.7% 3M)",
+        percentile_10y: 91.0,
+        status: "healthy",
+        direction: "rising"
       }
     ]
   });
@@ -187,6 +200,13 @@ macroRouter.get("/series/:id", async (c) => {
 
   // Provide calibrated series fallback
   const mockSeries: Record<string, any> = {
+    stablecoin_supply: [
+      { date: "2019-01", value: 3.2 }, { date: "2020-03", value: 7.5 },
+      { date: "2021-06", value: 105.0 }, { date: "2021-12", value: 152.0 },
+      { date: "2022-05", value: 187.0 }, { date: "2022-10", value: 145.0 },
+      { date: "2023-10", value: 122.0 }, { date: "2024-06", value: 162.0 },
+      { date: "2024-12", value: 173.8 }, { date: "2026-03", value: 192.4 }
+    ],
     net_liquidity: [
       { date: "2019-01", value: 5.10, spx_value: 2700 },
       { date: "2020-03", value: 5.15, spx_value: 2580, recession_flag: true },

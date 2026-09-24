@@ -41,6 +41,14 @@ interface MacroRegime {
   vulnerable_sectors: string[];
   tactical_rules: string[];
   updated_at: string;
+  shadow_liquidity?: {
+    indicator_id: string;
+    current_value_b: number;
+    change_3m_b: number;
+    velocity_status: string;
+    tbill_absorption_signal: string;
+    impact_on_risk_assets: string;
+  };
 }
 
 export const MacroDashboard: React.FC = () => {
@@ -123,18 +131,18 @@ export const MacroDashboard: React.FC = () => {
       </div>
 
       {/* Quick Pulse Cards (Clickable) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-        {indicators.slice(0, 6).map((ind) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9 gap-2.5">
+        {indicators.map((ind) => (
           <div
             key={ind.id}
             onClick={() => openPlaybook(ind.id)}
-            className="p-3.5 rounded-xl bg-[#0f1420] hover:bg-[#141b2b] border border-[#20283b] hover:border-blue-500/50 cursor-pointer transition-all duration-200 group shadow-sm"
+            className="p-3 rounded-xl bg-[#0f1420] hover:bg-[#141b2b] border border-[#20283b] hover:border-blue-500/50 cursor-pointer transition-all duration-200 group shadow-sm flex flex-col justify-between"
           >
             <div className="flex items-center justify-between text-[11px] text-gray-400 font-medium">
               <span className="truncate">{ind.name}</span>
               <Info size={12} className="opacity-0 group-hover:opacity-100 text-blue-400 transition-opacity" />
             </div>
-            <div className="text-base font-bold text-white mt-1 group-hover:text-blue-400 transition-colors">
+            <div className="text-base font-bold text-white mt-1 group-hover:text-blue-400 transition-colors truncate">
               {ind.display_value}
             </div>
             <div className="flex items-center justify-between mt-1 text-[10px] font-mono">
@@ -169,6 +177,15 @@ export const MacroDashboard: React.FC = () => {
                 <span className="text-rose-400 font-semibold">⚠️ Vulnerable: </span>
                 <span>{regime.vulnerable_sectors.slice(0, 2).join(", ")}</span>
               </div>
+              {regime.shadow_liquidity && (
+                <>
+                  <span>•</span>
+                  <div>
+                    <span className="text-cyan-400 font-semibold">🪙 Shadow Liquidity: </span>
+                    <span className="text-cyan-300 font-mono">{regime.shadow_liquidity.velocity_status}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -218,7 +235,7 @@ export const MacroDashboard: React.FC = () => {
               : "border-transparent text-gray-400 hover:text-gray-200"
           }`}
         >
-          3. Global Liquidity &amp; FX
+          3. Global Liquidity, FX &amp; Shadow Dollars
         </button>
 
         <button
@@ -499,76 +516,164 @@ export const MacroDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ==================== TAB 3: GLOBAL MACRO & FX ==================== */}
+      {/* ==================== TAB 3: GLOBAL LIQUIDITY, FX & SHADOW DOLLARS ==================== */}
       {activeSection === "global" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* DXY */}
-          <div 
-            onClick={() => openPlaybook("dxy_index")}
-            className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] hover:border-blue-500/50 cursor-pointer transition-all duration-200 shadow-md group"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors">
-                  U.S. Dollar Index (DXY)
-                </h3>
-                <p className="text-xs text-gray-400">Foreign currency drag &bull; Offshore liquidity squeeze</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* DXY */}
+            <div 
+              onClick={() => openPlaybook("dxy_index")}
+              className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] hover:border-blue-500/50 cursor-pointer transition-all duration-200 shadow-md group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors">
+                    U.S. Dollar Index (DXY)
+                  </h3>
+                  <p className="text-xs text-gray-400">Foreign currency drag &bull; Offshore liquidity squeeze</p>
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-400">102.8 (Easing)</span>
               </div>
-              <span className="text-xs font-mono font-bold text-emerald-400">102.8 (Easing)</span>
+
+              <div className="h-48 w-full">
+                <svg className="w-full h-full" viewBox="0 0 400 160">
+                  <line x1="30" y1="30" x2="370" y2="30" stroke="#1f283d" />
+                  <line x1="30" y1="80" x2="370" y2="80" stroke="#1f283d" />
+                  <line x1="30" y1="130" x2="370" y2="130" stroke="#1f283d" />
+
+                  <path d="M 30 110 Q 80 90 120 120 L 160 130 Q 210 100 250 30 Q 290 80 330 65 L 370 75" 
+                        fill="none" stroke="#0ea5e9" stroke-width="2.5" />
+
+                  <text x="25" y="35" font-size="9" fill="#0ea5e9" text-anchor="end">114</text>
+                  <text x="25" y="85" font-size="9" fill="#0ea5e9" text-anchor="end">104</text>
+                  <text x="25" y="135" font-size="9" fill="#0ea5e9" text-anchor="end">94</text>
+                  <text x="250" y="20" font-size="9" fill="#ef4444" font-weight="bold" text-anchor="middle">2022 Dollar Wrecking Ball</text>
+                </svg>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                <strong>Click for Layman's Terms:</strong> How a strong dollar reduces foreign sales for Apple and Microsoft.
+              </p>
             </div>
 
-            <div className="h-48 w-full">
-              <svg className="w-full h-full" viewBox="0 0 400 160">
-                <line x1="30" y1="30" x2="370" y2="30" stroke="#1f283d" />
-                <line x1="30" y1="80" x2="370" y2="80" stroke="#1f283d" />
-                <line x1="30" y1="130" x2="370" y2="130" stroke="#1f283d" />
+            {/* Copper / Gold */}
+            <div 
+              onClick={() => openPlaybook("copper_gold")}
+              className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] hover:border-blue-500/50 cursor-pointer transition-all duration-200 shadow-md group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors">
+                    Copper / Gold Ratio
+                  </h3>
+                  <p className="text-xs text-gray-400">Doctor Copper vs Safe-Haven Gold</p>
+                </div>
+                <span className="text-xs font-mono font-bold text-amber-400">0.174 (Caution)</span>
+              </div>
 
-                <path d="M 30 110 Q 80 90 120 120 L 160 130 Q 210 100 250 30 Q 290 80 330 65 L 370 75" 
-                      fill="none" stroke="#0ea5e9" stroke-width="2.5" />
+              <div className="h-48 w-full">
+                <svg className="w-full h-full" viewBox="0 0 400 160">
+                  <line x1="30" y1="30" x2="370" y2="30" stroke="#1f283d" />
+                  <line x1="30" y1="80" x2="370" y2="80" stroke="#1f283d" />
+                  <line x1="30" y1="130" x2="370" y2="130" stroke="#1f283d" />
 
-                <text x="25" y="35" font-size="9" fill="#0ea5e9" text-anchor="end">114</text>
-                <text x="25" y="85" font-size="9" fill="#0ea5e9" text-anchor="end">104</text>
-                <text x="25" y="135" font-size="9" fill="#0ea5e9" text-anchor="end">94</text>
-                <text x="250" y="20" font-size="9" fill="#ef4444" font-weight="bold" text-anchor="middle">2022 Dollar Wrecking Ball</text>
-              </svg>
+                  <path d="M 30 110 Q 70 130 110 125 L 150 40 Q 200 30 240 60 Q 290 90 330 100 L 370 120" 
+                        fill="none" stroke="#d97706" stroke-width="2.5" />
+
+                  <text x="25" y="35" font-size="9" fill="#d97706" text-anchor="end">High</text>
+                  <text x="25" y="135" font-size="9" fill="#d97706" text-anchor="end">Low</text>
+                  <text x="320" y="135" font-size="9" fill="#ef4444" font-weight="bold">Sovereign Gold Bid</text>
+                </svg>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                <strong>Click for Layman's Terms:</strong> Val's Rule on why gold's recent rally decoupled from the industrial cycle.
+              </p>
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              <strong>Click for Layman's Terms:</strong> How a strong dollar reduces foreign sales for Apple and Microsoft.
-            </p>
           </div>
 
-          {/* Copper / Gold */}
+          {/* Featured Chart: Stablecoin Supply & T-Bill Absorption */}
           <div 
-            onClick={() => openPlaybook("copper_gold")}
-            className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] hover:border-blue-500/50 cursor-pointer transition-all duration-200 shadow-md group"
+            onClick={() => openPlaybook("stablecoin_supply")}
+            className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] hover:border-cyan-500/50 cursor-pointer transition-all duration-200 shadow-md group relative"
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
-                <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors">
-                  Copper / Gold Ratio
-                </h3>
-                <p className="text-xs text-gray-400">Doctor Copper vs Safe-Haven Gold</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-white group-hover:text-cyan-400 transition-colors">
+                    Stablecoin Total Supply &amp; T-Bill Absorption ($192.4B)
+                  </h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
+                    +$18.6B (+10.7% 3M)
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold hidden sm:inline-block">
+                    Private Digital Liquidity
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  The $190B+ digital shadow banking system. Issuers (Tether &amp; Circle) hold more U.S. Treasury bills than Germany or Australia.
+                </p>
               </div>
-              <span className="text-xs font-mono font-bold text-amber-400">0.174 (Caution)</span>
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="flex items-center gap-1.5 text-cyan-400">
+                  <span className="w-3 h-0.5 bg-cyan-400 inline-block"></span> Total Stablecoin Supply ($B)
+                </span>
+              </div>
             </div>
 
-            <div className="h-48 w-full">
-              <svg className="w-full h-full" viewBox="0 0 400 160">
-                <line x1="30" y1="30" x2="370" y2="30" stroke="#1f283d" />
-                <line x1="30" y1="80" x2="370" y2="80" stroke="#1f283d" />
-                <line x1="30" y1="130" x2="370" y2="130" stroke="#1f283d" />
+            {/* SVG Chart */}
+            <div className="h-60 w-full">
+              <svg className="w-full h-full" viewBox="0 0 900 220">
+                <line x1="50" y1="20" x2="850" y2="20" stroke="#1f283d" />
+                <line x1="50" y1="65" x2="850" y2="65" stroke="#1f283d" />
+                <line x1="50" y1="110" x2="850" y2="110" stroke="#1f283d" />
+                <line x1="50" y1="155" x2="850" y2="155" stroke="#1f283d" />
 
-                <path d="M 30 110 Q 70 130 110 125 L 150 40 Q 200 30 240 60 Q 290 90 330 100 L 370 120" 
-                      fill="none" stroke="#d97706" stroke-width="2.5" />
+                {/* 2022 Contraction / De-leveraging */}
+                <rect x="390" y="20" width="160" height="135" fill="#ef4444" opacity="0.08" />
+                <text x="470" y="35" font-size="10" fill="#ef4444" text-anchor="middle" font-weight="bold">
+                  Shadow QT: -$65B De-leveraging (Terra &amp; FTX)
+                </text>
 
-                <text x="25" y="35" font-size="9" fill="#d97706" text-anchor="end">High</text>
-                <text x="25" y="135" font-size="9" fill="#d97706" text-anchor="end">Low</text>
-                <text x="320" y="135" font-size="9" fill="#ef4444" font-weight="bold">Sovereign Gold Bid</text>
+                {/* 2024-2026 Expansion & T-Bill Absorption */}
+                <rect x="580" y="20" width="270" height="135" fill="#06b6d4" opacity="0.08" />
+                <text x="715" y="35" font-size="10" fill="#06b6d4" text-anchor="middle" font-weight="bold">
+                  T-Bill Absorption &amp; Tech Speculative Bid (+$70B)
+                </text>
+
+                {/* Y Axis Labels */}
+                <text x="40" y="25" font-size="10" fill="#6b7280" text-anchor="end">$200B</text>
+                <text x="40" y="70" font-size="10" fill="#6b7280" text-anchor="end">$150B</text>
+                <text x="40" y="115" font-size="10" fill="#6b7280" text-anchor="end">$100B</text>
+                <text x="40" y="160" font-size="10" fill="#6b7280" text-anchor="end">$50B</text>
+
+                {/* Supply Curve */}
+                <path d="M 50 175 Q 120 173 180 170 L 220 168 Q 280 145 320 80 Q 350 45 390 28 L 430 75 Q 490 105 550 108 Q 630 65 710 50 L 780 40 L 850 24" 
+                      fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" />
+
+                {/* Milestone circles */}
+                <circle cx="390" cy="28" r="4" fill="#ef4444" />
+                <text x="390" y="20" font-size="9" fill="#ef4444" text-anchor="middle" font-weight="bold">May '22 ($187B)</text>
+
+                <circle cx="550" cy="108" r="4" fill="#f59e0b" />
+                <text x="550" y="125" font-size="9" fill="#f59e0b" text-anchor="middle" font-weight="bold">Oct '23 Trough ($122B)</text>
+
+                <circle cx="850" cy="24" r="4" fill="#10b981" />
+                <text x="850" y="16" font-size="9" fill="#10b981" text-anchor="middle" font-weight="bold">ATH $192.4B</text>
+
+                {/* X Axis Labels */}
+                <text x="50" y="185" font-size="10" fill="#6b7280">2019</text>
+                <text x="220" y="185" font-size="10" fill="#6b7280">2020 COVID</text>
+                <text x="320" y="185" font-size="10" fill="#6b7280">2021 Bull Run</text>
+                <text x="450" y="185" font-size="10" fill="#6b7280">2022 Hikes</text>
+                <text x="570" y="185" font-size="10" fill="#6b7280">2023 Bottom</text>
+                <text x="730" y="185" font-size="10" fill="#6b7280">2024 AI Inflow</text>
+                <text x="830" y="185" font-size="10" fill="#6b7280">2026 Today</text>
               </svg>
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              <strong>Click for Layman's Terms:</strong> Val's Rule on why gold's recent rally decoupled from the industrial cycle.
-            </p>
+
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-cyan-400 font-mono gap-1">
+              <span className="flex items-center gap-1"><HelpCircle size={14} /> Click to open Deep-Dive Modal: Shadow Banking Fuel Tank Metaphor</span>
+              <span className="text-gray-400">30-Day Velocity Rule: &gt; +$5B/mo confirms risk-on posture</span>
+            </div>
           </div>
         </div>
       )}
