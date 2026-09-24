@@ -126,30 +126,137 @@ export const StablecoinStatusCard: React.FC = () => {
     setIsMacroModalOpen(true);
   };
 
+  const [containerDimensions, setContainerDimensions] = useState({ width: 900, height: 256 });
+
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+    const updateSize = () => {
+      if (chartContainerRef.current) {
+        const rect = chartContainerRef.current.getBoundingClientRect();
+        if (rect.width > 50 && rect.height > 50) {
+          setContainerDimensions({
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          });
+        }
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(chartContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   // Extract active history series
   const activePoints = useMemo(() => {
     if (!data?.history) return [];
     return data.history[activeTimeframe] || [];
   }, [data, activeTimeframe]);
 
+  /**
+   * Calculates human-friendly rounded Y-axis tick intervals (e.g. multiples of 1, 2, 5, 10, 20, 25, 50, 100).
+   * Prevents awkward or fractional numbers and ensures clean, readable labels.
+   *
+   * @param minVal Minimum data value
+   * @param maxVal Maximum data value
+   * @param targetCount Approximate number of desired ticks
+   */
+  const getNiceTicks = (minVal: number, maxVal: number, targetCount = 5) => {
+    if (minVal === maxVal) {
+      minVal = Math.max(0, minVal * 0.9);
+      maxVal = maxVal * 1.1 || 1;
+    }
+    const span = maxVal - minVal;
+    // Add 5% breathing room top and bottom so values don't hit bounds
+    const paddedMin = Math.max(0, minVal - span * 0.05);
+    const paddedMax = maxVal + span * 0.05;
+    const range = paddedMax - paddedMin;
+
+    const rawStep = range / (targetCount - 1);
+    const powerOf10 = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const normalizedStep = rawStep / powerOf10;
+
+    let niceMultiplier = 1;
+    if (normalizedStep <= 1.5) niceMultiplier = 1;
+    else if (normalizedStep <= 3) niceMultiplier = 2;
+    else if (normalizedStep <= 7) niceMultiplier = 5;
+    else niceMultiplier = 10;
+
+    const step = niceMultiplier * powerOf10;
+    const tickMin = Math.floor(paddedMin / step) * step;
+    const tickMax = Math.ceil(paddedMax / step) * step;
+
+    const ticks: number[] = [];
+    for (let t = tickMin; t <= tickMax + step * 0.001; t += step) {
+      ticks.push(Math.round(t * 100) / 100);
+    }
+
+    return {
+      tickMin,
+      tickMax,
+      range: tickMax - tickMin || 1,
+      step,
+      ticks,
+    };
+  };
+
+  /**
+   * Formats date label based on current timeframe.
+   */
+  const formatXTickDate = (dateStr: string, timestamp: number, timeframe: string): string => {
+    const d = new Date(timestamp || dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+
+    if (timeframe === "ALL") {
+      return d.getFullYear().toString();
+    }
+    if (timeframe === "3Y" || timeframe === "1Y") {
+      return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    }
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  /**
+   * Formats Y-axis numerical values cleanly into dollar billions or trillions.
+   */
+  const formatYTick = (val: number, step: number): string => {
+    if (val >= 1000) return `$${(val / 1000).toFixed(1)}T`;
+    if (val === 0) return "$0";
+    if (step < 1) {
+      const decimals = step < 0.1 ? 2 : 1;
+      return `$${val.toFixed(decimals)}B`;
+    }
+    return `$${Math.round(val)}B`;
+  };
+
   // Compute SVG chart geometry
   const chartGeometry = useMemo(() => {
     if (!activePoints.length) return null;
 
     const values = activePoints.map((p) => p.valueB);
-    const minVal = Math.floor(Math.min(...values) * 0.95);
-    const maxVal = Math.ceil(Math.max(...values) * 1.05);
-    const range = maxVal - minVal || 1;
+    const rawMin = Math.min(...values);
+    const rawMax = Math.max(...values);
+    const niceY = getNiceTicks(rawMin, rawMax, 5);
 
-    const svgWidth = 900;
-    const svgHeight = 220;
-    const padX = 55;
-    const padY = 25;
-    const plotWidth = svgWidth - padX - 25;
-    const plotHeight = svgHeight - padY * 2;
+    const svgWidth = containerDimensions.width || 900;
+    const svgHeight = containerDimensions.height || 256;
+    const padLeft = 65;
+    const padRight = 25;
+    const padTop = 18;
+    const padBottom = 28;
+    const plotWidth = Math.max(10, svgWidth - padLeft - padRight);
+    const plotHeight = Math.max(10, svgHeight - padTop - padBottom);
 
-    const getX = (idx: number) => padX + (idx / (activePoints.length - 1)) * plotWidth;
-    const getY = (val: number) => padY + plotHeight - ((val - minVal) / range) * plotHeight;
+    const getX = (idx: number) =>
+      padLeft + (idx / Math.max(1, activePoints.length - 1)) * plotWidth;
+    const getY = (val: number) => {
+      const clamped = Math.max(niceY.tickMin, Math.min(niceY.tickMax, val));
+      return (
+        padTop +
+        plotHeight -
+        ((clamped - niceY.tickMin) / niceY.range) * plotHeight
+      );
+    };
 
     const coords = activePoints.map((p, idx) => ({
       x: getX(idx),
@@ -163,36 +270,55 @@ export const StablecoinStatusCard: React.FC = () => {
     }, "");
 
     // Area fill path closing at bottom
-    const areaD = `${pathD} L ${coords[coords.length - 1].x} ${padY + plotHeight} L ${coords[0].x} ${padY + plotHeight} Z`;
+    const areaD = `${pathD} L ${coords[coords.length - 1].x} ${padTop + plotHeight} L ${coords[0].x} ${padTop + plotHeight} Z`;
 
-    // 4 Y-axis ticks
-    const yTicks = [
-      { val: maxVal, y: getY(maxVal) },
-      { val: Math.round(minVal + range * 0.66), y: getY(minVal + range * 0.66) },
-      { val: Math.round(minVal + range * 0.33), y: getY(minVal + range * 0.33) },
-      { val: minVal, y: getY(minVal) },
-    ];
+    // Y-axis ticks
+    const yTicks = niceY.ticks.map((val) => ({
+      val,
+      y: getY(val),
+      label: formatYTick(val, niceY.step),
+    }));
+
+    // X-axis ticks (3 to 6 ticks evenly distributed)
+    const numXTicks = svgWidth > 800 ? 5 : svgWidth > 500 ? 4 : 3;
+    const xTicks = [];
+    for (let i = 0; i < numXTicks; i++) {
+      const idx = Math.min(
+        activePoints.length - 1,
+        Math.round((i / (numXTicks - 1)) * (activePoints.length - 1))
+      );
+      const pt = activePoints[idx];
+      if (pt) {
+        xTicks.push({
+          idx,
+          x: getX(idx),
+          label: formatXTickDate(pt.date, pt.timestamp, activeTimeframe),
+          align: (i === 0 ? "start" : i === numXTicks - 1 ? "end" : "middle") as "start" | "end" | "middle",
+        });
+      }
+    }
 
     return {
       svgWidth,
       svgHeight,
-      padX,
-      padY,
+      padLeft,
+      padRight,
+      padTop,
+      padBottom,
       plotWidth,
       plotHeight,
       coords,
       pathD,
       areaD,
       yTicks,
-      minVal,
-      maxVal,
+      xTicks,
     };
-  }, [activePoints]);
+  }, [activePoints, containerDimensions, activeTimeframe]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!chartGeometry || !chartGeometry.coords.length) return;
     const svgRect = e.currentTarget.getBoundingClientRect();
-    const mouseX = ((e.clientX - svgRect.left) / svgRect.width) * chartGeometry.svgWidth;
+    const mouseX = e.clientX - svgRect.left;
 
     // Find nearest point along X
     let closest = chartGeometry.coords[0];
@@ -360,7 +486,7 @@ export const StablecoinStatusCard: React.FC = () => {
         {/* Chart Viewport */}
         <div
           ref={chartContainerRef}
-          className="relative h-64 w-full rounded-xl bg-[#0b0e17] border border-[#1b2336] p-2 overflow-hidden"
+          className="relative h-64 w-full rounded-xl bg-[#0b0e17] border border-[#1b2336] overflow-hidden"
         >
           {loading && !data ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-2">
@@ -370,8 +496,9 @@ export const StablecoinStatusCard: React.FC = () => {
           ) : chartGeometry ? (
             <svg
               className="w-full h-full cursor-crosshair select-none"
+              width={chartGeometry.svgWidth}
+              height={chartGeometry.svgHeight}
               viewBox={`0 0 ${chartGeometry.svgWidth} ${chartGeometry.svgHeight}`}
-              preserveAspectRatio="none"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
@@ -384,24 +511,47 @@ export const StablecoinStatusCard: React.FC = () => {
 
               {/* Horizontal Gridlines and Y Ticks */}
               {chartGeometry.yTicks.map((tick, i) => (
-                <g key={i}>
+                <g key={`y-${i}`}>
                   <line
-                    x1={chartGeometry.padX}
+                    x1={chartGeometry.padLeft}
                     y1={tick.y}
-                    x2={chartGeometry.svgWidth - 25}
+                    x2={chartGeometry.svgWidth - chartGeometry.padRight}
                     y2={tick.y}
                     stroke="#182236"
                     strokeDasharray="4 4"
                   />
                   <text
-                    x={chartGeometry.padX - 8}
-                    y={tick.y + 3}
-                    fontSize="10"
+                    x={chartGeometry.padLeft - 10}
+                    y={tick.y + 4}
+                    fontSize="11"
                     fill="#64748b"
                     fontFamily="monospace"
                     textAnchor="end"
                   >
-                    ${tick.val}B
+                    {tick.label}
+                  </text>
+                </g>
+              ))}
+
+              {/* X-axis Date Labels & Subtle Tick Notches */}
+              {chartGeometry.xTicks.map((xtick, i) => (
+                <g key={`x-${i}`}>
+                  <line
+                    x1={xtick.x}
+                    y1={chartGeometry.padTop + chartGeometry.plotHeight}
+                    x2={xtick.x}
+                    y2={chartGeometry.padTop + chartGeometry.plotHeight + 4}
+                    stroke="#26344d"
+                  />
+                  <text
+                    x={xtick.x}
+                    y={chartGeometry.svgHeight - 8}
+                    fontSize="11"
+                    fill="#64748b"
+                    fontFamily="monospace"
+                    textAnchor={xtick.align}
+                  >
+                    {xtick.label}
                   </text>
                 </g>
               ))}
@@ -424,9 +574,9 @@ export const StablecoinStatusCard: React.FC = () => {
                 <g>
                   <line
                     x1={hoveredPoint.x}
-                    y1={chartGeometry.padY}
+                    y1={chartGeometry.padTop}
                     x2={hoveredPoint.x}
-                    y2={chartGeometry.svgHeight - chartGeometry.padY}
+                    y2={chartGeometry.padTop + chartGeometry.plotHeight}
                     stroke="#38bdf8"
                     strokeWidth="1.5"
                     strokeDasharray="3 3"
@@ -453,8 +603,8 @@ export const StablecoinStatusCard: React.FC = () => {
             <div
               className="absolute pointer-events-none z-30 px-2.5 py-1.5 rounded-lg bg-[#141b2b] border border-cyan-500/50 shadow-2xl text-xs font-mono transform -translate-x-1/2 -translate-y-full"
               style={{
-                left: `${(hoveredPoint.x / (chartGeometry?.svgWidth || 900)) * 100}%`,
-                top: `${(hoveredPoint.y / (chartGeometry?.svgHeight || 220)) * 100}%`,
+                left: `${hoveredPoint.x}px`,
+                top: `${hoveredPoint.y}px`,
                 marginTop: "-10px",
               }}
             >
