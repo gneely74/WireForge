@@ -276,4 +276,30 @@ describe("WireForge Backend API Test Suite", () => {
     const body = await res.json();
     expect(Array.isArray(body.data)).toBe(true);
   });
+
+  it("GET /v1/macro/stablecoins returns authentic live stablecoin status", async () => {
+    const res = await app.request("/v1/macro/stablecoins");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data).toBeDefined();
+    expect(body.data.summary).toBeDefined();
+    expect(body.data.summary.totalCirculatingUsd).toBeGreaterThan(100000000000); // > $100B
+    expect(Array.isArray(body.data.assets)).toBe(true);
+    expect(body.data.assets.length).toBeGreaterThanOrEqual(5);
+    expect(body.data.assets[0].symbol).toBe("USDT");
+    expect(body.data.history).toBeDefined();
+    expect(Array.isArray(body.data.history["30D"])).toBe(true);
+    expect(body.data.history["30D"].length).toBeGreaterThan(0);
+  });
+
+  it("GET /v1/macro/indicators includes authentic stablecoin supply", async () => {
+    const res = await app.request("/v1/macro/indicators");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.data)).toBe(true);
+    const sc = body.data.find((item: any) => item.id === "stablecoin_supply");
+    expect(sc).toBeDefined();
+    expect(sc.current_value).toBeGreaterThan(150);
+  });
 });

@@ -1,3 +1,17 @@
+/**
+ * @fileoverview Macroeconomic Dashboard & Fed Liquidity Surveillance Terminal.
+ * Displays real-time macro regimes (Growth Impulse vs. Financial Conditions),
+ * Fed liquidity aggregates (Net Liquidity, Reverse Repo, TGA, Remittances),
+ * global shadow banking / stablecoin transmission radar, cross-asset correlation matrix,
+ * and FOMC council member tracking.
+ *
+ * Upstream Sources:
+ *  - Backend Macro API (/v1/macro/regime, /v1/macro/indicators, /v1/macro/stablecoins)
+ * Downstream Consumers:
+ *  - WireForge App Navigation (Macro & Fed tab)
+ *  - Indicator deep-dive modal (MacroPlaybookModal.tsx)
+ */
+
 import React, { useEffect, useState } from "react";
 import {
   TrendingUp,
@@ -13,6 +27,7 @@ import {
   Info,
 } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
+import { StablecoinStatusCard } from "./StablecoinStatusCard.js";
 
 interface MacroIndicator {
   id: string;
@@ -56,7 +71,7 @@ export const MacroDashboard: React.FC = () => {
 
   const [regime, setRegime] = useState<MacroRegime | null>(null);
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
-  const [activeSection, setActiveSection] = useState<"fed" | "growth" | "global" | "matrix" | "council">("fed");
+  const [activeSection, setActiveSection] = useState<"fed" | "growth" | "global" | "stablecoins" | "matrix" | "council">("fed");
   const [loading, setLoading] = useState(false);
 
   const fetchMacroData = () => {
@@ -239,6 +254,18 @@ export const MacroDashboard: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveSection("stablecoins")}
+          className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+            activeSection === "stablecoins"
+              ? "border-cyan-500 text-cyan-400"
+              : "border-transparent text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span>4. Stablecoin Peg &amp; Shadow Liquidity</span>
+        </button>
+
+        <button
           onClick={() => setActiveSection("matrix")}
           className={`px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
             activeSection === "matrix"
@@ -246,7 +273,7 @@ export const MacroDashboard: React.FC = () => {
               : "border-transparent text-gray-400 hover:text-gray-200"
           }`}
         >
-          4. 4-Quadrant Macro Matrix
+          5. 4-Quadrant Macro Matrix
         </button>
 
         <button
@@ -257,7 +284,7 @@ export const MacroDashboard: React.FC = () => {
               : "border-transparent text-gray-400 hover:text-gray-200"
           }`}
         >
-          5. Council Consensus &amp; Signal vs Noise
+          6. Council Consensus &amp; Signal vs Noise
         </button>
       </div>
 
@@ -590,95 +617,19 @@ export const MacroDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Featured Chart: Stablecoin Supply & T-Bill Absorption */}
-          <div 
-            onClick={() => openPlaybook("stablecoin_supply")}
-            className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] hover:border-cyan-500/50 cursor-pointer transition-all duration-200 shadow-md group relative"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-white group-hover:text-cyan-400 transition-colors">
-                    Stablecoin Total Supply &amp; T-Bill Absorption ($192.4B)
-                  </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
-                    +$18.6B (+10.7% 3M)
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold hidden sm:inline-block">
-                    Private Digital Liquidity
-                  </span>
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  The $190B+ digital shadow banking system. Issuers (Tether &amp; Circle) hold more U.S. Treasury bills than Germany or Australia.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-xs font-mono">
-                <span className="flex items-center gap-1.5 text-cyan-400">
-                  <span className="w-3 h-0.5 bg-cyan-400 inline-block"></span> Total Stablecoin Supply ($B)
-                </span>
-              </div>
-            </div>
-
-            {/* SVG Chart */}
-            <div className="h-60 w-full">
-              <svg className="w-full h-full" viewBox="0 0 900 220">
-                <line x1="50" y1="20" x2="850" y2="20" stroke="#1f283d" />
-                <line x1="50" y1="65" x2="850" y2="65" stroke="#1f283d" />
-                <line x1="50" y1="110" x2="850" y2="110" stroke="#1f283d" />
-                <line x1="50" y1="155" x2="850" y2="155" stroke="#1f283d" />
-
-                {/* 2022 Contraction / De-leveraging */}
-                <rect x="390" y="20" width="160" height="135" fill="#ef4444" opacity="0.08" />
-                <text x="470" y="35" font-size="10" fill="#ef4444" text-anchor="middle" font-weight="bold">
-                  Shadow QT: -$65B De-leveraging (Terra &amp; FTX)
-                </text>
-
-                {/* 2024-2026 Expansion & T-Bill Absorption */}
-                <rect x="580" y="20" width="270" height="135" fill="#06b6d4" opacity="0.08" />
-                <text x="715" y="35" font-size="10" fill="#06b6d4" text-anchor="middle" font-weight="bold">
-                  T-Bill Absorption &amp; Tech Speculative Bid (+$70B)
-                </text>
-
-                {/* Y Axis Labels */}
-                <text x="40" y="25" font-size="10" fill="#6b7280" text-anchor="end">$200B</text>
-                <text x="40" y="70" font-size="10" fill="#6b7280" text-anchor="end">$150B</text>
-                <text x="40" y="115" font-size="10" fill="#6b7280" text-anchor="end">$100B</text>
-                <text x="40" y="160" font-size="10" fill="#6b7280" text-anchor="end">$50B</text>
-
-                {/* Supply Curve */}
-                <path d="M 50 175 Q 120 173 180 170 L 220 168 Q 280 145 320 80 Q 350 45 390 28 L 430 75 Q 490 105 550 108 Q 630 65 710 50 L 780 40 L 850 24" 
-                      fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" />
-
-                {/* Milestone circles */}
-                <circle cx="390" cy="28" r="4" fill="#ef4444" />
-                <text x="390" y="20" font-size="9" fill="#ef4444" text-anchor="middle" font-weight="bold">May '22 ($187B)</text>
-
-                <circle cx="550" cy="108" r="4" fill="#f59e0b" />
-                <text x="550" y="125" font-size="9" fill="#f59e0b" text-anchor="middle" font-weight="bold">Oct '23 Trough ($122B)</text>
-
-                <circle cx="850" cy="24" r="4" fill="#10b981" />
-                <text x="850" y="16" font-size="9" fill="#10b981" text-anchor="middle" font-weight="bold">ATH $192.4B</text>
-
-                {/* X Axis Labels */}
-                <text x="50" y="185" font-size="10" fill="#6b7280">2019</text>
-                <text x="220" y="185" font-size="10" fill="#6b7280">2020 COVID</text>
-                <text x="320" y="185" font-size="10" fill="#6b7280">2021 Bull Run</text>
-                <text x="450" y="185" font-size="10" fill="#6b7280">2022 Hikes</text>
-                <text x="570" y="185" font-size="10" fill="#6b7280">2023 Bottom</text>
-                <text x="730" y="185" font-size="10" fill="#6b7280">2024 AI Inflow</text>
-                <text x="830" y="185" font-size="10" fill="#6b7280">2026 Today</text>
-              </svg>
-            </div>
-
-            <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-cyan-400 font-mono gap-1">
-              <span className="flex items-center gap-1"><HelpCircle size={14} /> Click to open Deep-Dive Modal: Shadow Banking Fuel Tank Metaphor</span>
-              <span className="text-gray-400">30-Day Velocity Rule: &gt; +$5B/mo confirms risk-on posture</span>
-            </div>
-          </div>
+          {/* Featured Live Interactive Chart & Peg Radar: Stablecoins & T-Bill Absorption */}
+          <StablecoinStatusCard />
         </div>
       )}
 
-      {/* ==================== TAB 4: 4-QUADRANT REGIME MATRIX ==================== */}
+      {/* ==================== TAB 4: STABLECOIN PEG & SHADOW LIQUIDITY ==================== */}
+      {activeSection === "stablecoins" && (
+        <div className="space-y-6">
+          <StablecoinStatusCard />
+        </div>
+      )}
+
+      {/* ==================== TAB 5: 4-QUADRANT REGIME MATRIX ==================== */}
       {activeSection === "matrix" && (
         <div className="p-6 rounded-2xl bg-[#0f1420] border border-[#20283b] space-y-4">
           <div className="flex items-center justify-between">
