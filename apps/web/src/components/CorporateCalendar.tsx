@@ -285,7 +285,6 @@ export const CorporateCalendar: React.FC = () => {
     if (!ticker) return;
     const sym = ticker.toUpperCase();
     setSelectedBiotechTicker(sym);
-    setSelectedTicker(sym);
     setIsBiotechModalOpen(true);
   };
 
