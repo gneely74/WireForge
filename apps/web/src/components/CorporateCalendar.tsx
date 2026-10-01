@@ -353,7 +353,7 @@ export const CorporateCalendar: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-white tracking-wide text-sm">CATALYST & CLINICAL RADAR</span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 font-mono border border-purple-800/40">
-                    BIOPHARM & VALUEFORGE
+                    NIH & OPENFDA & VALUEFORGE
                   </span>
                 </div>
               </div>
