@@ -10,6 +10,7 @@ import { ArticleModal } from "./components/ArticleModal.js";
 import { WatchlistManagerModal } from "./components/WatchlistManagerModal.js";
 import { MacroDashboard } from "./components/MacroDashboard.js";
 import { MacroDeepDiveModal } from "./components/MacroDeepDiveModal.js";
+import { BiotechDetailModal } from "./components/BiotechDetailModal.js";
 import { useWireWebSocket } from "./hooks/useWireWebSocket.js";
 import { useWireForgeStore } from "./store/wireforge-store.js";
 
@@ -175,6 +176,7 @@ export const App: React.FC = () => {
       <ArticleModal />
       <WatchlistManagerModal />
       <MacroDeepDiveModal />
+      <BiotechDetailModal />
     </div>
   );
 };

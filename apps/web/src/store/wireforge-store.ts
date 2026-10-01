@@ -24,6 +24,12 @@ interface WireForgeState {
   isMacroModalOpen: boolean;
   setIsMacroModalOpen: (open: boolean) => void;
 
+  // Biotech Intelligence Modal
+  selectedBiotechTicker: string | null;
+  setSelectedBiotechTicker: (ticker: string | null) => void;
+  isBiotechModalOpen: boolean;
+  setIsBiotechModalOpen: (open: boolean) => void;
+
   // Shared Watchlists
   watchlists: Watchlist[];
   setWatchlists: (watchlists: Watchlist[]) => void;
@@ -220,6 +226,11 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   setSelectedMacroIndicator: (selectedMacroIndicator) => set({ selectedMacroIndicator }),
   isMacroModalOpen: false,
   setIsMacroModalOpen: (isMacroModalOpen) => set({ isMacroModalOpen }),
+
+  selectedBiotechTicker: null,
+  setSelectedBiotechTicker: (selectedBiotechTicker) => set({ selectedBiotechTicker }),
+  isBiotechModalOpen: false,
+  setIsBiotechModalOpen: (isBiotechModalOpen) => set({ isBiotechModalOpen }),
 
   watchlists: PRESET_WATCHLISTS,
   setWatchlists: (watchlists) => set({ watchlists }),

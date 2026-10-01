@@ -241,3 +241,274 @@ export const StockTwitsSentimentSchema = z.object({
 });
 export type StockTwitsSentiment = z.infer<typeof StockTwitsSentimentSchema>;
 
+// ==========================================
+// 9. BIOTECH RADAR & CATALYST INTELLIGENCE
+// ==========================================
+
+/**
+ * Schema representing an upcoming or current FDA clinical milestone catalyst.
+ * Integrates clinical stage, trial registry ID (NCT), cash runway, and market metrics.
+ */
+export const BiotechCatalystSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string(),
+  drugName: z.string(),
+  stage: z.string(),
+  stageRaw: z.string().optional(),
+  indication: z.string(),
+  catalystDate: z.string(),
+  note: z.string(),
+  clinicalTrialId: z.string().nullable().optional(),
+  estimatedPrimaryCompletionDate: z.string().nullable().optional(),
+  pressLink: z.string().nullable().optional(),
+  price: z.number().nullable().optional(),
+  change: z.number().nullable().optional(),
+  percentChange: z.number().nullable().optional(),
+  marketCap: z.number().nullable().optional(),
+  float: z.number().nullable().optional(),
+  cashLive: z.number().nullable().optional(),
+  monthlyBurn: z.number().nullable().optional(),
+  monthsCash: z.number().nullable().optional(),
+  statuses: z.array(z.object({
+    label: z.string(),
+    abbreviation: z.string().optional(),
+  })).optional(),
+  sparkline: z.array(z.array(z.number())).optional(),
+});
+/** TypeScript interface for an authentic FDA clinical milestone catalyst. */
+export type BiotechCatalyst = z.infer<typeof BiotechCatalystSchema>;
+
+/**
+ * Schema representing an FDA PDUFA decision date or Advisory Committee (AdCom) milestone.
+ */
+export const PdufaEventSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string(),
+  drugName: z.string(),
+  pdufaDate: z.string().nullable().optional(),
+  priorityReviewDate: z.string().nullable().optional(),
+  adcomDate: z.string().nullable().optional(),
+  status: z.string().optional(),
+  note: z.string().optional(),
+  pressLink: z.string().nullable().optional(),
+  price: z.number().nullable().optional(),
+  percentChange: z.number().nullable().optional(),
+});
+/** TypeScript interface for a PDUFA decision target event. */
+export type PdufaEvent = z.infer<typeof PdufaEventSchema>;
+
+/**
+ * Schema representing catalyst expected price move, options implied volatility,
+ * and options sentiment for upcoming biotech catalysts.
+ */
+export const CatalystImpactItemSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string().optional(),
+  drugName: z.string().optional(),
+  catalystDate: z.string().optional(),
+  indication: z.string().optional(),
+  stage: z.string().optional(),
+  expectedPriceMovePct: z.number().nullable().optional(),
+  impliedVolatility: z.number().nullable().optional(),
+  openInterest: z.number().nullable().optional(),
+  daysToExpiration: z.number().nullable().optional(),
+  recentSweepsCount: z.number().default(0),
+  totalOptionVolume: z.number().default(0),
+  bullishFlowRatio: z.number().nullable().optional(),
+});
+/** TypeScript interface for catalyst options impact and volatility metrics. */
+export type CatalystImpactItem = z.infer<typeof CatalystImpactItemSchema>;
+
+/**
+ * Schema representing major medical and scientific healthcare conferences
+ * (e.g. J.P. Morgan Healthcare Conference, ASCO, AACR, ASH, EAACI).
+ */
+export const BiotechConferenceEventSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  acronym: z.string(),
+  type: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  abstractDate: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
+  link: z.string().nullable().optional(),
+  companiesCount: z.number().optional(),
+});
+/** TypeScript interface for a biotech conference event. */
+export type BiotechConferenceEvent = z.infer<typeof BiotechConferenceEventSchema>;
+
+/**
+ * Schema representing an authentic presentation scheduled for the J.P. Morgan Healthcare Conference.
+ */
+export const JpmConferencePresentationSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string(),
+  dateTime: z.string().nullable().optional(),
+  link: z.string().nullable().optional(),
+  deals: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  catalystChange: z.string().nullable().optional(),
+});
+/** TypeScript interface for a JPM conference presentation. */
+export type JpmConferencePresentation = z.infer<typeof JpmConferencePresentationSchema>;
+
+/**
+ * Schema representing a medical device regulatory or clinical catalyst (510(k), PMA, De Novo).
+ */
+export const MedicalDeviceCatalystSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string().optional(),
+  deviceName: z.string(),
+  indication: z.string(),
+  stage: z.string(),
+  decisionDate: z.string().nullable().optional(),
+  note: z.string().optional(),
+  cashLive: z.number().nullable().optional(),
+  monthsCash: z.number().nullable().optional(),
+  price: z.number().nullable().optional(),
+  percentChange: z.number().nullable().optional(),
+});
+/** TypeScript interface for a medical device catalyst. */
+export type MedicalDeviceCatalyst = z.infer<typeof MedicalDeviceCatalystSchema>;
+
+/**
+ * Schema representing historical FDA catalyst outcomes, decisions, and post-catalyst stock performance.
+ */
+export const HistoricalCatalystItemSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string(),
+  drugName: z.string(),
+  indication: z.string(),
+  stage: z.string(),
+  catalystDate: z.string(),
+  note: z.string(),
+  priceAtCatalyst: z.union([z.string(), z.number()]).nullable().optional(),
+  catalystPriceMovement: z.union([z.string(), z.number()]).nullable().optional(),
+});
+/** TypeScript interface for a historical catalyst outcome. */
+export type HistoricalCatalystItem = z.infer<typeof HistoricalCatalystItemSchema>;
+
+/**
+ * Schema representing historical medical device regulatory decisions and price movements.
+ */
+export const HistoricalMedicalDeviceItemSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string().optional(),
+  deviceName: z.string(),
+  indication: z.string(),
+  stage: z.string(),
+  catalystDate: z.string(),
+  note: z.string(),
+  priceChange: z.union([z.string(), z.number()]).nullable().optional(),
+});
+/** TypeScript interface for a historical medical device decision. */
+export type HistoricalMedicalDeviceItem = z.infer<typeof HistoricalMedicalDeviceItemSchema>;
+
+/**
+ * Schema representing biotech Initial Public Offerings (IPOs) and offerings calendar.
+ */
+export const BiotechIpoItemSchema = z.object({
+  id: z.string(),
+  symbol: z.string(),
+  company: z.string(),
+  managers: z.string(),
+  shares: z.string().nullable().optional(),
+  volume: z.string().nullable().optional(),
+  expectedToTrade: z.string().nullable().optional(),
+});
+/** TypeScript interface for a biotech IPO event. */
+export type BiotechIpoItem = z.infer<typeof BiotechIpoItemSchema>;
+
+/**
+ * Schema representing cash runway, monthly burn rate, and dilution risk analysis for biotech equities.
+ * Dilution risk is triggered when months of cash falls below 6 months.
+ */
+export const BiotechCashRunwayItemSchema = z.object({
+  id: z.string(),
+  ticker: z.string(),
+  companyName: z.string(),
+  price: z.number().nullable().optional(),
+  percentChange: z.number().nullable().optional(),
+  cashLive: z.number(),
+  monthlyBurn: z.number(),
+  monthsCash: z.number(),
+  reportDate: z.string(),
+  dangerDilution: z.boolean(),
+  notes: z.string().optional(),
+});
+/** TypeScript interface for biotech balance sheet runway and dilution risk metrics. */
+export type BiotechCashRunwayItem = z.infer<typeof BiotechCashRunwayItemSchema>;
+
+/**
+ * Schema representing a drug pipeline candidate in the comprehensive screener database.
+ */
+export const DrugPipelineItemSchema = z.object({
+  id: z.string(),
+  drugId: z.number(),
+  drugName: z.string(),
+  ticker: z.string(),
+  companyName: z.string(),
+  stage: z.string(),
+  indication: z.string(),
+  catalystDate: z.string().optional(),
+  clinicalTrialId: z.string().nullable().optional(),
+  note: z.string().optional(),
+  monthsCash: z.number().nullable().optional(),
+  marketCap: z.number().nullable().optional(),
+});
+/** TypeScript interface for a drug pipeline candidate. */
+export type DrugPipelineItem = z.infer<typeof DrugPipelineItemSchema>;
+
+/**
+ * Enriched composite intelligence details for a biotech company,
+ * cross-referencing BioPharmCatalyst, NIH ClinicalTrials.gov, and ValueForge SEC EDGAR filings.
+ */
+export interface BiotechStockDetail {
+  ticker: string;
+  companyName: string;
+  price?: number | null;
+  marketCap?: number | null;
+  catalysts: BiotechCatalyst[];
+  clinicalTrials: Array<{
+    nctId: string;
+    briefTitle: string;
+    overallStatus: string;
+    phase?: string;
+    enrollmentCount?: number;
+    primaryCompletionDate?: string;
+  }>;
+  secFilings: Array<{
+    accessionNo: string;
+    formType: string;
+    filingDate: string;
+    description: string;
+    primaryDocumentUrl: string;
+  }>;
+  financials?: {
+    cik?: number;
+    cashLive?: number | null;
+    monthlyBurn?: number | null;
+    monthsCash?: number | null;
+    dangerDilution?: boolean;
+    sicCode?: string;
+    headquarters?: string;
+    description?: string;
+  };
+  optionsSummary?: {
+    totalVolume: number;
+    callVolume: number;
+    putVolume: number;
+    bullishRatio: number | null;
+    sweepsCount: number;
+    impliedVolatility?: number | null;
+  };
+}
+

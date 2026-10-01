@@ -13,6 +13,7 @@ import { proxyRouter } from "./routes/proxy.js";
 import { watchlistsRouter } from "./routes/watchlists.js";
 import { socialRouter } from "./routes/social.js";
 import { macroRouter } from "./routes/macro.js";
+import { biotechRouter } from "./routes/biotech.js";
 import { setupWebSocketServer } from "./websocket/server.js";
 
 const app = new Hono();
@@ -55,6 +56,7 @@ app.route("/v1/proxy", proxyRouter);
 app.route("/v1/watchlists", watchlistsRouter);
 app.route("/v1/social", socialRouter);
 app.route("/v1/macro", macroRouter);
+app.route("/v1/biotech", biotechRouter);
 
 // OpenAPI Spec definition
 app.get("/v1/openapi.json", (c) => {
