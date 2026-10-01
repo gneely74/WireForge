@@ -34,6 +34,8 @@ import {
   DrugPipelineItem,
   BiotechStockDetail,
 } from "@wireforge/shared";
+import fs from "node:fs";
+import path from "node:path";
 import { globalOptionsDb } from "./options-db.js";
 
 /** Cache container interface with TTL expiration tracking. */
@@ -135,11 +137,30 @@ export class BiotechService {
       return;
     }
 
+    const diskPath = path.resolve(process.cwd(), "data/healthcare_directory.json");
+
+    // Fast boot: load from persistent disk cache if fresh (< 24h)
+    if (this.healthcareDirectory.length === 0 && fs.existsSync(diskPath)) {
+      try {
+        const stats = fs.statSync(diskPath);
+        if (Date.now() - stats.mtimeMs < this.DIRECTORY_TTL_MS) {
+          const raw = fs.readFileSync(diskPath, "utf-8");
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.setHealthcareDirectory(parsed, stats.mtimeMs);
+            return;
+          }
+        }
+      } catch {
+        // Fallback to live fetch
+      }
+    }
+
     for (const baseUrl of this.valueforgeCandidates) {
       try {
         const firstPageRes = await fetch(`${baseUrl}/api/screener?sector=Healthcare&page=1`, {
           headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(6000),
         });
 
         if (!firstPageRes.ok) continue;
@@ -148,50 +169,68 @@ export class BiotechService {
         const allResults: HealthcareCompany[] = Array.isArray(firstPage.results) ? [...firstPage.results] : [];
 
         if (totalPages > 1) {
+          const chunkSize = 4;
           const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-          const pageResponses = await Promise.all(
-            remainingPages.map((p) =>
-              fetch(`${baseUrl}/api/screener?sector=Healthcare&page=${p}`, {
-                headers: { Accept: "application/json" },
-                signal: AbortSignal.timeout(6000),
-              })
-                .then((r) => (r.ok ? r.json() : { results: [] }))
-                .catch(() => ({ results: [] }))
-            )
-          );
+          for (let i = 0; i < remainingPages.length; i += chunkSize) {
+            const chunk = remainingPages.slice(i, i + chunkSize);
+            const chunkResponses = await Promise.all(
+              chunk.map((p) =>
+                fetch(`${baseUrl}/api/screener?sector=Healthcare&page=${p}`, {
+                  headers: { Accept: "application/json" },
+                  signal: AbortSignal.timeout(10000),
+                })
+                  .then((r) => (r.ok ? r.json() : { results: [] }))
+                  .catch(() => ({ results: [] }))
+              )
+            );
 
-          for (const pr of pageResponses) {
-            if (Array.isArray(pr.results)) {
-              allResults.push(...pr.results);
+            for (const pr of chunkResponses) {
+              if (Array.isArray(pr.results)) {
+                allResults.push(...pr.results);
+              }
             }
           }
         }
 
         if (allResults.length > 0) {
-          this.healthcareDirectory = allResults;
-          this.healthcareByTicker.clear();
-          this.healthcareByName.clear();
-
-          for (const item of allResults) {
-            const sym = item.ticker?.toUpperCase();
-            if (sym) this.healthcareByTicker.set(sym, item);
-
-            const rawName = item.company_name?.toLowerCase();
-            if (rawName) this.healthcareByName.set(rawName, item);
-
-            const normName = this.normalizeCompanyName(item.company_name || "");
-            if (normName.length > 2 && !this.healthcareByName.has(normName)) {
-              this.healthcareByName.set(normName, item);
-            }
+          this.setHealthcareDirectory(allResults, Date.now());
+          try {
+            const dir = path.dirname(diskPath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(diskPath, JSON.stringify(allResults));
+          } catch {
+            // Non-critical if disk write fails
           }
-
-          this.directoryLoadedAt = Date.now();
           return;
         }
       } catch {
         // Try next candidate host
       }
     }
+  }
+
+  /**
+   * Internal helper to index healthcare directory records by ticker and normalized company name.
+   */
+  private setHealthcareDirectory(results: HealthcareCompany[], loadedAt: number): void {
+    this.healthcareDirectory = results;
+    this.healthcareByTicker.clear();
+    this.healthcareByName.clear();
+
+    for (const item of results) {
+      const sym = item.ticker?.toUpperCase();
+      if (sym) this.healthcareByTicker.set(sym, item);
+
+      const rawName = item.company_name?.toLowerCase();
+      if (rawName) this.healthcareByName.set(rawName, item);
+
+      const normName = this.normalizeCompanyName(item.company_name || "");
+      if (normName.length > 2 && !this.healthcareByName.has(normName)) {
+        this.healthcareByName.set(normName, item);
+      }
+    }
+
+    this.directoryLoadedAt = loadedAt;
   }
 
   /**
