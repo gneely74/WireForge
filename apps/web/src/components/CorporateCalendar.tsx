@@ -300,6 +300,55 @@ export const CorporateCalendar: React.FC = () => {
     return `$${val.toLocaleString()}`;
   };
 
+  /**
+   * Institutional runway badge helper adhering to biotech equity research standards:
+   * - null / undefined / <= 0: "—"
+   * - 999: Emerald "Positive OCF" (self-funded commercial biopharmas)
+   * - >= 36: Green "36+ mo" (well capitalized multi-year buffer)
+   * - < 6: Red danger dilution badge ("X.X mo") with shield icon
+   * - < 12: Amber warning badge ("X.X mo")
+   * - 12-36: Standard emerald badge ("X.X mo")
+   */
+  const renderRunwayBadge = (months?: number | null) => {
+    if (months === null || months === undefined || months <= 0) {
+      return <span className="text-gray-500">—</span>;
+    }
+    if (months === 999) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800/40 whitespace-nowrap">
+          Positive OCF
+        </span>
+      );
+    }
+    if (months >= 36) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/30 whitespace-nowrap">
+          36+ mo
+        </span>
+      );
+    }
+    if (months < 6) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-950/80 text-red-300 border border-red-800/50 whitespace-nowrap inline-flex items-center gap-1">
+          <ShieldAlert size={10} className="text-red-400" />
+          <span>{months.toFixed(1)} mo</span>
+        </span>
+      );
+    }
+    if (months < 12) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-800/40 whitespace-nowrap">
+          {months.toFixed(1)} mo
+        </span>
+      );
+    }
+    return (
+      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-400 whitespace-nowrap">
+        {months.toFixed(1)} mo
+      </span>
+    );
+  };
+
   // Filtered views
   const filteredFda = useMemo(() => {
     return fdaCatalysts.filter((c) => {
@@ -673,21 +722,7 @@ export const CorporateCalendar: React.FC = () => {
                       <td className="py-2.5 px-3 text-gray-300 font-sans max-w-xs truncate">{c.indication}</td>
                       <td className="py-2.5 px-3 text-gray-400 font-sans max-w-md truncate">{c.note}</td>
                       <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        {c.monthsCash !== null && c.monthsCash !== undefined ? (
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              c.monthsCash < 6
-                                ? "bg-red-950/80 text-red-300 border border-red-800/40"
-                                : c.monthsCash < 12
-                                ? "bg-amber-950/80 text-amber-300 border border-amber-800/40"
-                                : "text-emerald-400"
-                            }`}
-                          >
-                            {c.monthsCash.toFixed(1)} mo
-                          </span>
-                        ) : (
-                          "—"
-                        )}
+                        {renderRunwayBadge(c.monthsCash)}
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         {c.clinicalTrialId ? (
@@ -848,19 +883,15 @@ export const CorporateCalendar: React.FC = () => {
                       <td className="py-2.5 px-3 text-right text-emerald-400 font-bold">
                         {formatMoney(c.cashLive)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-amber-400">{formatMoney(c.monthlyBurn)}</td>
+                      <td className="py-2.5 px-3 text-right text-amber-400">
+                        {c.monthlyBurn === 0 && c.monthsCash === 999 ? (
+                          <span className="text-emerald-400 font-sans text-[11px]">$0 (Profitable)</span>
+                        ) : (
+                          formatMoney(c.monthlyBurn)
+                        )}
+                      </td>
                       <td className="py-2.5 px-3 text-right">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            c.monthsCash < 6
-                              ? "bg-red-950 text-red-300 border border-red-800/50"
-                              : c.monthsCash < 12
-                              ? "bg-amber-950 text-amber-300 border border-amber-800/40"
-                              : "text-emerald-400"
-                          }`}
-                        >
-                          {c.monthsCash.toFixed(1)} mo
-                        </span>
+                        {renderRunwayBadge(c.monthsCash)}
                       </td>
                       <td className="py-2.5 px-3 text-right text-gray-400">{c.reportDate}</td>
                     </tr>
@@ -988,8 +1019,8 @@ export const CorporateCalendar: React.FC = () => {
                       </td>
                       <td className="py-2.5 px-3 text-gray-300 font-sans max-w-xs truncate">{p.indication}</td>
                       <td className="py-2.5 px-3 text-amber-300">{p.catalystDate || "—"}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-400">
-                        {p.monthsCash !== null && p.monthsCash !== undefined ? `${p.monthsCash.toFixed(1)} mo` : "—"}
+                      <td className="py-2.5 px-3 text-right">
+                        {renderRunwayBadge(p.monthsCash)}
                       </td>
                     </tr>
                   ))}

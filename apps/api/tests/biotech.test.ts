@@ -145,7 +145,22 @@ describe("Biotech Radar & Catalyst API Suite", () => {
     }
   });
 
-  it("GET /v1/biotech/detail/:ticker returns composite intelligence report", async () => {
+  it("GET /v1/biotech/cash-runway excludes stale shells and provides institutional runway metrics", async () => {
+    const res = await app.request("/v1/biotech/cash-runway?page=1");
+    expect([200, 503]).toContain(res.status);
+    const body = await res.json();
+    if (res.status === 200) {
+      expect(Array.isArray(body.data)).toBe(true);
+      expect(body.data.length).toBeGreaterThan(0);
+      for (const item of body.data) {
+        expect(Number(item.reportDate)).toBeGreaterThanOrEqual(2024);
+        expect(item.cashLive).toBeGreaterThanOrEqual(100000);
+        expect(item.monthsCash).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("GET /v1/biotech/detail/:ticker returns composite intelligence report with financial runway", async () => {
     const res = await app.request("/v1/biotech/detail/GALT");
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -153,5 +168,10 @@ describe("Biotech Radar & Catalyst API Suite", () => {
     expect(body.data.ticker).toBe("GALT");
     expect(Array.isArray(body.data.catalysts)).toBe(true);
     expect(Array.isArray(body.data.secFilings)).toBe(true);
+    if (body.data.financials) {
+      expect(body.data.financials.cashLive).toBeDefined();
+      expect(body.data.financials.monthlyBurn).toBeDefined();
+      expect(body.data.financials.monthsCash).toBeDefined();
+    }
   });
 });

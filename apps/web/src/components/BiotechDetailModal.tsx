@@ -341,30 +341,54 @@ export const BiotechDetailModal: React.FC = () => {
                     <div className="p-3 rounded-xl bg-[#111520] border border-[#20293d]">
                       <div className="text-gray-400 text-[11px] mb-1">Monthly Cash Burn</div>
                       <div className="text-lg font-bold text-amber-400 font-mono">
-                        {formatMoney(detail.financials?.monthlyBurn)}
+                        {detail.financials?.monthlyBurn !== null && detail.financials?.monthlyBurn !== undefined
+                          ? detail.financials.monthlyBurn === 0
+                            ? "$0 (Profitable / Inflow)"
+                            : formatMoney(detail.financials.monthlyBurn)
+                          : "—"}
                       </div>
-                      <div className="text-[10px] text-gray-500 mt-1">Operational Outflow / mo</div>
+                      <div className="text-[10px] text-gray-500 mt-1">
+                        {detail.financials?.monthlyBurn === 0
+                          ? "Net Operating Cash Flow Positive"
+                          : "Operational Outflow / mo"}
+                      </div>
                     </div>
 
                     <div
                       className={`p-3 rounded-xl border ${
                         detail.financials?.dangerDilution
                           ? "bg-red-950/30 border-red-800/50"
+                          : detail.financials?.monthsCash !== null && detail.financials?.monthsCash !== undefined && detail.financials.monthsCash < 12
+                          ? "bg-amber-950/20 border-amber-800/40"
                           : "bg-[#111520] border-[#20293d]"
                       }`}
                     >
                       <div className="text-gray-400 text-[11px] mb-1">Estimated Cash Runway</div>
                       <div
                         className={`text-lg font-bold font-mono ${
-                          detail.financials?.dangerDilution ? "text-red-400" : "text-emerald-400"
+                          detail.financials?.dangerDilution
+                            ? "text-red-400"
+                            : detail.financials?.monthsCash !== null && detail.financials?.monthsCash !== undefined && detail.financials.monthsCash < 12
+                            ? "text-amber-400"
+                            : "text-emerald-400"
                         }`}
                       >
                         {detail.financials?.monthsCash !== null && detail.financials?.monthsCash !== undefined
-                          ? `${detail.financials.monthsCash.toFixed(1)} Months`
+                          ? detail.financials.monthsCash === 999
+                            ? "Positive OCF"
+                            : detail.financials.monthsCash >= 36
+                            ? "36+ Months"
+                            : `${detail.financials.monthsCash.toFixed(1)} Months`
                           : "—"}
                       </div>
                       <div className="text-[10px] text-gray-500 mt-1">
-                        {detail.financials?.dangerDilution ? "High Dilution / Offering Risk" : "Funded Runway"}
+                        {detail.financials?.dangerDilution
+                          ? "High Dilution / Offering Risk (<6 mo)"
+                          : detail.financials?.monthsCash === 999
+                          ? "Self-Funded / Commercial Revenue"
+                          : detail.financials?.monthsCash !== null && detail.financials?.monthsCash !== undefined && detail.financials.monthsCash < 12
+                          ? "Watch Dilution Window (6-12 mo)"
+                          : "Funded Operational Runway"}
                       </div>
                     </div>
                   </div>

@@ -342,8 +342,8 @@ export class BiotechService {
 
           if (cashLive && monthlyBurn > 0) {
             monthsCash = Number((cashLive / monthlyBurn).toFixed(1));
-          } else if (cashLive && monthlyBurn === 0) {
-            monthsCash = 99;
+          } else if (cashLive && monthlyBurn === 0 && (cfo > 0 || netIncome > 0)) {
+            monthsCash = 999; // Sentinel for Positive OCF / Self-Funded
           }
         }
 
@@ -950,6 +950,19 @@ export class BiotechService {
         const decisionCode = item.decision_code || "SESE";
         const kNum = item.k_number || "";
 
+        let monthsCash: number | null = null;
+        if (matched) {
+          const cash = matched.latest_current_assets ? Number(matched.latest_current_assets) : 0;
+          const cfo = matched.latest_cfo ? Number(matched.latest_cfo) : 0;
+          const netInc = matched.latest_net_income ? Number(matched.latest_net_income) : 0;
+          const burn = cfo < 0 ? Math.abs(cfo) / 12 : (netInc < 0 ? Math.abs(netInc) / 12 : 0);
+          if (burn > 0 && cash > 0) {
+            monthsCash = Number((cash / burn).toFixed(1));
+          } else if (burn === 0 && cash > 10_000_000 && (cfo > 0 || netInc > 0)) {
+            monthsCash = 999;
+          }
+        }
+
         return {
           id: `med-${kNum || Math.random().toString(36).substring(7)}`,
           ticker: matched?.ticker || applicant.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5) || "MED",
@@ -960,7 +973,7 @@ export class BiotechService {
           decisionDate: item.decision_date || null,
           note: `FDA 510(k) Premarket Notification cleared. Panel: ${panel}. K-Number: ${kNum}.`,
           cashLive: matched?.latest_current_assets ? Number(matched.latest_current_assets) : null,
-          monthsCash: null,
+          monthsCash,
           price: matched?.current_price ? Number(matched.current_price) : null,
           percentChange: null,
         };
@@ -1345,8 +1358,14 @@ export class BiotechService {
 
   /**
    * Retrieves the comprehensive cash holdings, burn rate, and dilution risk database from ValueForge.
-   * Evaluates 1,500+ authentic SEC 10-K and 10-Q balance sheets and automatically flags companies
-   * with less than 6 months of cash remaining.
+   * Evaluates 1,500+ authentic SEC 10-K and 10-Q balance sheets across all healthcare equities.
+   *
+   * Institutional Runway Rules:
+   * 1. Filters out stale/defunct OTC shell companies (requires fy >= 2024, cash >= $100K, market cap >= $500K).
+   * 2. Computes monthly burn from negative cash flows from operations (CFO) or negative net income.
+   * 3. Assigns sentinel monthsCash = 999 for cash-flow-positive / self-funded biopharmas (burn === 0).
+   * 4. Flags high dilution risk companies (< 6 months runway) with dangerDilution = true.
+   * 5. Sorts by danger biotechs ascending (< 6 mo), followed by funded biotechs (6-36+ mo), and self-funded.
    *
    * @param options Query filters including dangerOnly flag and cache bypass.
    * @returns Structured list of BiotechCashRunwayItem records.
@@ -1377,7 +1396,15 @@ export class BiotechService {
       const items: BiotechCashRunwayItem[] = [];
 
       for (const c of this.healthcareDirectory) {
+        const fy = Number(c.latest_fy || 0);
         const cash = Number(c.latest_current_assets || 0);
+        const mcap = Number(c.market_cap || 0);
+
+        // Exclude obsolete/defunct OTC shells (must have reported in 2024+, cash >= $100K, market cap >= $500K)
+        if (fy < 2024 || cash < 100000 || mcap < 500000) {
+          continue;
+        }
+
         const cfo = Number(c.latest_cfo || 0);
         const netInc = Number(c.latest_net_income || 0);
 
@@ -1390,10 +1417,13 @@ export class BiotechService {
         }
 
         let months = 0;
+        let isSelfFunded = false;
+
         if (burn > 0) {
           months = Number((cash / burn).toFixed(1));
-        } else if (cash > 0) {
-          months = 99; // Sustainable or cash-flow positive
+        } else if (cash > 0 && (cfo > 0 || netInc > 0)) {
+          isSelfFunded = true;
+          months = 999; // Sentinel for Positive OCF / Self-Funded
         }
 
         const danger = months > 0 && months < 6;
@@ -1413,14 +1443,20 @@ export class BiotechService {
           monthsCash: months,
           reportDate: String(c.latest_fy || "2025"),
           dangerDilution: danger,
-          notes: `${c.industry || "Biotechnology"} (SIC ${c.sic_code || "2834"}) | Current Assets: $${(cash / 1e6).toFixed(1)}M`,
+          notes: isSelfFunded
+            ? `Self-Funded / Positive OCF | Cash: $${(cash / 1e6).toFixed(1)}M | MCap: $${(mcap / 1e6).toFixed(0)}M`
+            : `${c.industry || "Biotechnology"} (SIC ${c.sic_code || "2834"}) | Cash: $${(cash / 1e6).toFixed(1)}M | Burn: $${(burn / 1e6).toFixed(2)}M/mo`,
         });
       }
 
-      // Sort by dilution danger first (fewest months cash), then market cap
+      // Sort: Dilution danger biotechs (< 6 months) first (shortest runway to longest),
+      // then funded biotechs (6 to 36+ mo), then self-funded biopharmas
       items.sort((a, b) => {
         if (a.dangerDilution && !b.dangerDilution) return -1;
         if (!a.dangerDilution && b.dangerDilution) return 1;
+        if (a.dangerDilution && b.dangerDilution) return a.monthsCash - b.monthsCash;
+        if (a.monthsCash < 999 && b.monthsCash === 999) return -1;
+        if (a.monthsCash === 999 && b.monthsCash < 999) return 1;
         return a.monthsCash - b.monthsCash;
       });
 
@@ -1512,8 +1548,16 @@ export class BiotechService {
           indication,
           catalystDate: epcd ? this.formatCatalystDate(epcd) : undefined,
           clinicalTrialId: nctId,
-          note: p.descriptionModule?.briefSummary || p.identificationModule?.briefTitle || undefined,
-          monthsCash: null,
+          monthsCash: (() => {
+            if (!matched) return null;
+            const cash = Number(matched.latest_current_assets || 0);
+            const cfo = Number(matched.latest_cfo || 0);
+            const netInc = Number(matched.latest_net_income || 0);
+            const burn = cfo < 0 ? Math.abs(cfo) / 12 : (netInc < 0 ? Math.abs(netInc) / 12 : 0);
+            if (burn > 0 && cash > 0) return Number((cash / burn).toFixed(1));
+            if (burn === 0 && cash > 10_000_000 && (cfo > 0 || netInc > 0)) return 999;
+            return null;
+          })(),
           marketCap: matched?.market_cap ? Number(matched.market_cap) : null,
         };
       });
@@ -1711,27 +1755,50 @@ export class BiotechService {
       primaryDocumentUrl: f.primary_document_url || "",
     }));
 
+    await this.ensureHealthcareDirectory();
+    const hc = this.healthcareDirectory.find((h) => h.ticker === sym);
+
+    let cashLive = catalysts[0]?.cashLive || null;
+    let monthlyBurn = catalysts[0]?.monthlyBurn || null;
+    let monthsCash = catalysts[0]?.monthsCash || null;
+
+    if (!cashLive && hc) {
+      cashLive = hc.latest_current_assets ? Number(hc.latest_current_assets) : null;
+      const cfo = hc.latest_cfo ? Number(hc.latest_cfo) : 0;
+      const netInc = hc.latest_net_income ? Number(hc.latest_net_income) : 0;
+      if (cfo < 0) {
+        monthlyBurn = Math.abs(cfo) / 12;
+      } else if (netInc < 0) {
+        monthlyBurn = Math.abs(netInc) / 12;
+      } else {
+        monthlyBurn = 0;
+      }
+
+      if (cashLive && monthlyBurn > 0) {
+        monthsCash = Number((cashLive / monthlyBurn).toFixed(1));
+      } else if (cashLive && monthlyBurn === 0 && (cfo > 0 || netInc > 0)) {
+        monthsCash = 999;
+      }
+    }
+
     return {
       ticker: sym,
-      companyName: vfSummary?.company?.company_name || catalysts[0]?.companyName || sym,
-      price: catalysts[0]?.price || (vfSummary?.company?.current_price ? Number(vfSummary.company.current_price) : null),
-      marketCap: catalysts[0]?.marketCap || null,
+      companyName: vfSummary?.company?.company_name || hc?.company_name || catalysts[0]?.companyName || sym,
+      price: catalysts[0]?.price || (vfSummary?.company?.current_price ? Number(vfSummary.company.current_price) : hc?.current_price ? Number(hc.current_price) : null),
+      marketCap: catalysts[0]?.marketCap || (hc?.market_cap ? Number(hc.market_cap) : null),
       catalysts,
       clinicalTrials,
       secFilings,
-      financials: vfSummary?.company
+      financials: (vfSummary?.company || hc)
         ? {
-            cik: vfSummary.company.cik,
-            cashLive: catalysts[0]?.cashLive || null,
-            monthlyBurn: catalysts[0]?.monthlyBurn || null,
-            monthsCash: catalysts[0]?.monthsCash || null,
-            dangerDilution:
-              catalysts[0]?.monthsCash !== undefined && catalysts[0]?.monthsCash !== null
-                ? catalysts[0].monthsCash < 6
-                : false,
-            sicCode: vfSummary.company.sic_code,
-            headquarters: vfSummary.company.headquarters,
-            description: vfSummary.company.description,
+            cik: vfSummary?.company?.cik || (hc?.cik ? Number(hc.cik) : undefined),
+            cashLive,
+            monthlyBurn,
+            monthsCash,
+            dangerDilution: monthsCash !== null && monthsCash > 0 && monthsCash < 6,
+            sicCode: vfSummary?.company?.sic_code || (hc?.sic_code ? String(hc.sic_code) : undefined),
+            headquarters: vfSummary?.company?.headquarters,
+            description: vfSummary?.company?.description,
           }
         : undefined,
       optionsSummary,
