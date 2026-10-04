@@ -512,3 +512,45 @@ export interface BiotechStockDetail {
   };
 }
 
+// ==========================================
+// 8. MACROECONOMIC BENCHMARKS & YIELD CURVE
+// ==========================================
+export const YieldCurveRatesSchema = z.object({
+  SOFR: z.number().nullable(),
+  EFFR: z.number().nullable(),
+  TREASURY_M1: z.number().nullable(),
+  TREASURY_M3: z.number().nullable(),
+  TREASURY_M6: z.number().nullable(),
+  TREASURY_Y1: z.number().nullable(),
+  TREASURY_Y2: z.number().nullable(),
+  TREASURY_Y3: z.number().nullable(),
+  TREASURY_Y5: z.number().nullable(),
+  TREASURY_Y7: z.number().nullable(),
+  TREASURY_Y10: z.number().nullable(),
+  TREASURY_Y20: z.number().nullable(),
+  TREASURY_Y30: z.number().nullable(),
+});
+export type YieldCurveRates = z.infer<typeof YieldCurveRatesSchema>;
+
+export const YieldCurveResponseSchema = z.object({
+  success: z.boolean(),
+  asOfDate: z.string(),
+  rates: YieldCurveRatesSchema,
+  spreads: z.object({
+    spread10y2y: z.number().nullable(),
+    spread10y3m: z.number().nullable(),
+    isInverted10y2y: z.boolean(),
+    isInverted10y3m: z.boolean(),
+  }),
+  tenors: z.array(
+    z.object({
+      tenor: z.string(),
+      label: z.string(),
+      rate: z.number().nullable(),
+      category: z.string(),
+    })
+  ),
+  source: z.string(),
+});
+export type YieldCurveResponse = z.infer<typeof YieldCurveResponseSchema>;
+

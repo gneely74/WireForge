@@ -16,6 +16,7 @@
 import { Hono } from "hono";
 import { globalEcosystemClient } from "../services/ecosystem-client.js";
 import { globalStablecoinService } from "../services/stablecoin-service.js";
+import { globalYieldCurveService } from "../services/yield-curve-service.js";
 
 export const macroRouter = new Hono();
 
@@ -419,3 +420,46 @@ macroRouter.get("/stablecoins", async (c) => {
     );
   }
 });
+
+/**
+ * 6. GET /v1/macro/yield-curve
+ * GET /v1/macro/rates
+ * Retrieves authentic U.S. Treasury Par Yield Curve and SOFR benchmarks
+ * sourced from ValueForge Central Financial Intelligence Platform (with government fallback).
+ */
+macroRouter.get("/yield-curve", async (c) => {
+  const forceRefresh = c.req.query("refresh") === "true";
+  try {
+    const data = await globalYieldCurveService.getYieldCurve(forceRefresh);
+    return c.json({ data, success: true });
+  } catch (err: any) {
+    console.error("[MacroRouter] Error fetching yield curve:", err);
+    return c.json(
+      {
+        success: false,
+        error: "DATA_UNAVAILABLE",
+        message: "Live yield curve telemetry temporarily unavailable from upstream feeds.",
+      },
+      503
+    );
+  }
+});
+
+macroRouter.get("/rates", async (c) => {
+  const forceRefresh = c.req.query("refresh") === "true";
+  try {
+    const data = await globalYieldCurveService.getYieldCurve(forceRefresh);
+    return c.json({ data, success: true });
+  } catch (err: any) {
+    console.error("[MacroRouter] Error fetching benchmark rates:", err);
+    return c.json(
+      {
+        success: false,
+        error: "DATA_UNAVAILABLE",
+        message: "Live benchmark rates temporarily unavailable from upstream feeds.",
+      },
+      503
+    );
+  }
+});
+

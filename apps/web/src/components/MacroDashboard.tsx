@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 import { StablecoinStatusCard } from "./StablecoinStatusCard.js";
+import { YieldCurveCard } from "./YieldCurveCard.js";
 
 interface MacroIndicator {
   id: string;
@@ -366,6 +367,9 @@ export const MacroDashboard: React.FC = () => {
               <span className="text-gray-400">Current Level: $6.24T (+42B 3M)</span>
             </div>
           </div>
+
+          {/* U.S. Treasury Par Yield Curve & SOFR Benchmark Rates */}
+          <YieldCurveCard onSelectTenor={openPlaybook} />
 
           {/* Sub Grid: Real Yields & Yield Curve */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

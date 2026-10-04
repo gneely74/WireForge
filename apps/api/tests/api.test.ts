@@ -302,4 +302,32 @@ describe("WireForge Backend API Test Suite", () => {
     expect(sc).toBeDefined();
     expect(sc.current_value).toBeGreaterThan(150);
   });
+
+  it("GET /v1/macro/yield-curve returns authentic SOFR and U.S. Treasury curve", async () => {
+    const res = await app.request("/v1/macro/yield-curve");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data).toBeDefined();
+    expect(body.data.rates).toBeDefined();
+
+    // Verify key rates exist and are positive numbers
+    expect(typeof body.data.rates.SOFR).toBe("number");
+    expect(body.data.rates.SOFR).toBeGreaterThan(0);
+    expect(typeof body.data.rates.TREASURY_M1).toBe("number");
+    expect(typeof body.data.rates.TREASURY_M3).toBe("number");
+    expect(typeof body.data.rates.TREASURY_Y2).toBe("number");
+    expect(typeof body.data.rates.TREASURY_Y10).toBe("number");
+    expect(typeof body.data.rates.TREASURY_Y30).toBe("number");
+
+    // Verify spreads and inversion metrics
+    expect(body.data.spreads).toBeDefined();
+    expect(typeof body.data.spreads.spread10y2y).toBe("number");
+    expect(typeof body.data.spreads.isInverted10y2y).toBe("boolean");
+
+    // Verify tenors array
+    expect(Array.isArray(body.data.tenors)).toBe(true);
+    expect(body.data.tenors.length).toBeGreaterThanOrEqual(10);
+    expect(body.data.source).toContain("ValueForge");
+  });
 });
