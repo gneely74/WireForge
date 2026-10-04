@@ -15,6 +15,7 @@ import { socialRouter } from "./routes/social.js";
 import { macroRouter } from "./routes/macro.js";
 import { biotechRouter } from "./routes/biotech.js";
 import { setupWebSocketServer } from "./websocket/server.js";
+import { globalYieldCurveService } from "./services/yield-curve-service.js";
 
 const app = new Hono();
 
@@ -222,6 +223,9 @@ if (process.env.NODE_ENV !== "test") {
 
   // Attach WebSocket Server
   setupWebSocketServer(serverInstance as any);
+
+  // Proactively pre-warm and poll macroeconomic benchmark rates
+  globalYieldCurveService.startBackgroundPoller();
 }
 
 export default app;

@@ -234,6 +234,33 @@ export class YieldCurveService {
       source: "U.S. Department of the Treasury & Federal Reserve Bank of New York (Direct Government Fallback)",
     };
   }
+
+  /**
+   * Starts proactive background polling to keep macroeconomic benchmark rates
+   * continuously warm in memory every 15 minutes.
+   *
+   * @param {number} [intervalMs=900000] Polling interval in milliseconds (default 15 minutes).
+   */
+  public startBackgroundPoller(intervalMs: number = 15 * 60 * 1000): void {
+    // Non-blocking pre-warm on initial boot
+    this.getYieldCurve().catch((err) => {
+      console.warn("[YieldCurveService] Initial boot pre-warm warning:", err.message);
+    });
+
+    // Scheduled background refresh
+    const timer = setInterval(async () => {
+      try {
+        await this.getYieldCurve(true);
+      } catch (err: any) {
+        console.warn("[YieldCurveService] Background refresh warning:", err.message);
+      }
+    }, intervalMs);
+
+    // Unref timer so it does not block Node process termination in tests or scripts
+    if (typeof timer.unref === "function") {
+      timer.unref();
+    }
+  }
 }
 
 export const globalYieldCurveService = new YieldCurveService();
