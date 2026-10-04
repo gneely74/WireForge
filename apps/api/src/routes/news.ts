@@ -14,6 +14,7 @@
 import { Hono } from "hono";
 import { globalNewsAggregator } from "../services/news-aggregator.js";
 import { globalWatchlistsService } from "../services/watchlists-service.js";
+import { globalTreeNewsService } from "../services/tree-news-service.js";
 import { NewsCategory, NewsImpact } from "@wireforge/shared";
 
 export const newsRouter = new Hono();
@@ -65,13 +66,36 @@ newsRouter.get("/", (c) => {
 
 /**
  * GET /v1/news/stats
- * Retrieves news stream statistics and deduplication diagnostics.
+ * Retrieves news stream statistics, deduplication diagnostics, and upstream service telemetry.
  */
 newsRouter.get("/stats", (c) => {
   return c.json({
     totalArticles: globalNewsAggregator.getArticles({ limit: 1000 }).length,
     dedupe: globalNewsAggregator.getDedupeStats(),
+    treeNews: globalTreeNewsService.getStatus(),
   });
+});
+
+/**
+ * GET /v1/news/tree/status
+ * Retrieves live telemetry and connection status for the Tree News streaming WebSocket.
+ */
+newsRouter.get("/tree/status", (c) => {
+  return c.json(globalTreeNewsService.getStatus());
+});
+
+/**
+ * POST /v1/news/tree/backfill
+ * Triggers an immediate authentic REST backfill from Tree of Alpha.
+ */
+newsRouter.post("/tree/backfill", async (c) => {
+  const queryLimit = c.req.query("limit") ? Number(c.req.query("limit")) : 100;
+  try {
+    const ingested = await globalTreeNewsService.backfill(queryLimit);
+    return c.json({ success: true, ingested, status: globalTreeNewsService.getStatus() });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 502);
+  }
 });
 
 /**

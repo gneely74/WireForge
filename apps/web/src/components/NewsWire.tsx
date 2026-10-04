@@ -327,10 +327,12 @@ export const NewsWire: React.FC = () => {
                           ? "bg-amber-950/50 text-amber-300 border border-amber-800/40"
                           : item.category === "social"
                           ? "bg-sky-950/50 text-sky-300 border border-sky-600/40"
+                          : item.category === "macro"
+                          ? "bg-indigo-950/50 text-indigo-300 border border-indigo-800/40"
                           : "bg-blue-950/40 text-blue-300 border border-blue-800/30"
                       }`}
                     >
-                      {item.category === "social" ? "StockTwits" : item.category}
+                      {item.category === "social" ? (item.source.toLowerCase().includes("stocktwits") ? "StockTwits" : "Social") : item.category}
                     </span>
 
                     {item.sentiment && (
