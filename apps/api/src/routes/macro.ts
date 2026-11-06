@@ -89,11 +89,6 @@ macroRouter.get("/regime", async (c) => {
  * Retrieves the core dashboard indicators spanning Fed Liquidity, Real Economy, and Global Macro.
  */
 macroRouter.get("/indicators", async (c) => {
-  const upstream = await fetchFromForge("/api/macro/indicators");
-  if (upstream) {
-    return c.json({ data: upstream });
-  }
-
   // Retrieve authentic live stablecoin figures if available
   let stablecoinVal = 310.9;
   let stablecoinDisplay = "$310.9B";
@@ -128,6 +123,33 @@ macroRouter.get("/indicators", async (c) => {
     }
   } catch {
     // Retain baseline if upstream is unreachable
+  }
+
+  const upstream = await fetchFromForge("/api/macro/indicators");
+  if (Array.isArray(upstream)) {
+    const enriched = upstream.map((item: any) => {
+      if (item.id === "stablecoin_supply") {
+        return {
+          ...item,
+          current_value: stablecoinVal,
+          display_value: stablecoinDisplay,
+          change_3m: stablecoinChange3m,
+          change_3m_display: stablecoinChange3mDisplay,
+          direction: stablecoinChange3m >= 0 ? "rising" : "falling",
+        };
+      }
+      if (item.id === "yield_curve_10y3m") {
+        return {
+          ...item,
+          current_value: yield10y3mVal,
+          display_value: yield10y3mDisplay,
+          status: yield10y3mStatus,
+          direction: yield10y3mDirection,
+        };
+      }
+      return item;
+    });
+    return c.json({ data: enriched });
   }
 
   return c.json({
