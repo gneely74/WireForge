@@ -78,14 +78,23 @@ export class OptionsDb {
     `);
   }
 
+  /**
+   * Initializes in-memory row count using two separate O(1) B-tree endpoint lookups
+   * (`SELECT MAX(_rowid_)` and `SELECT MIN(_rowid_)`).
+   * Note: SQLite's min/max B-tree optimization only applies when a query contains a single
+   * `MIN()` or `MAX()` aggregate; combining both in one SELECT would trigger an index scan.
+   */
   private initTotalCount() {
     try {
-      const row: any = this.db
-        .prepare(
-          "SELECT CASE WHEN MAX(_rowid_) IS NULL THEN 0 ELSE MAX(_rowid_) - MIN(_rowid_) + 1 END as total FROM options_flow"
-        )
-        .get();
-      this.totalCount = Number(row?.total) || 0;
+      const maxRow: any = this.db.prepare("SELECT MAX(_rowid_) as max_id FROM options_flow").get();
+      if (!maxRow || maxRow.max_id === null || maxRow.max_id === undefined) {
+        this.totalCount = 0;
+        return;
+      }
+      const minRow: any = this.db.prepare("SELECT MIN(_rowid_) as min_id FROM options_flow").get();
+      const maxId = Number(maxRow.max_id) || 0;
+      const minId = Number(minRow?.min_id) || 1;
+      this.totalCount = Math.max(0, maxId - minId + 1);
     } catch {
       this.totalCount = 0;
     }

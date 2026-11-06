@@ -8,3 +8,6 @@ apps/web/dist
 apps/api/dist
 packages/*/dist
 .cache
+data/*.db
+data/*.db-shm
+data/*.db-wal
