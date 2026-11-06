@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Central Zustand state store for the WireForge frontend workstation.
+ * Manages active navigation tabs, real-time news articles, paginated options flow,
+ * market signals, economic/corporate calendars, shared watchlists, and HTML5 audio squawk state.
+ *
+ * Upstream Sources:
+ *  - REST bootstrap & pagination calls (`/v1/news`, `/v1/flow`, `/v1/signals`, `/v1/watchlists`)
+ *  - WebSocket real-time stream (`hooks/useWireWebSocket.ts`)
+ * Downstream Consumers:
+ *  - All WireForge workstation UI components and modals.
+ */
+
 import { create } from "zustand";
 import {
   NewsArticle,
@@ -332,9 +344,10 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
   prependFlowTrade: (trade) =>
     set((state) => {
       const filtered = state.flowTrades.filter((t) => t.id !== trade.id);
+      const isNew = filtered.length === state.flowTrades.length;
       return {
         flowTrades: [trade, ...filtered].slice(0, 5000),
-        flowTotal: state.flowTotal + 1,
+        flowTotal: isNew ? state.flowTotal + 1 : state.flowTotal,
       };
     }),
 
@@ -440,7 +453,11 @@ export const useWireForgeStore = create<WireForgeState>((set, get) => ({
     if (!squawkEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
-    set({ squawkEnabled, squawkQueue: squawkEnabled ? get().squawkQueue : [] });
+    set({
+      squawkEnabled,
+      isSquawkPlaying: squawkEnabled ? get().isSquawkPlaying : false,
+      squawkQueue: squawkEnabled ? get().squawkQueue : [],
+    });
   },
   squawkVolume: 0.85,
   setSquawkVolume: (squawkVolume) => set({ squawkVolume }),

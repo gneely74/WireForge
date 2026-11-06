@@ -713,8 +713,8 @@ export const StablecoinExplainerModal: React.FC<StablecoinExplainerModalProps> =
                       <li>
                         30-Day Flow:{" "}
                         <span className={asset.change30dUsd >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                          {asset.change30dUsd >= 0 ? "+" : ""}$
-                          {(Math.abs(asset.change30dUsd) / 1e6).toFixed(1)}M ({asset.change30dPct.toFixed(2)}%)
+                          {asset.change30dUsd >= 0 ? "+" : "-"}$
+                          {(Math.abs(asset.change30dUsd) / 1e6).toFixed(1)}M ({asset.change30dPct >= 0 ? "+" : ""}{asset.change30dPct.toFixed(2)}%)
                         </span>
                         . Positive momentum reflects expanding secondary market adoption.
                       </li>

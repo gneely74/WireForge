@@ -1,3 +1,15 @@
+/**
+ * @fileoverview SQLite Persistence Engine for Unusual Options Activity (`options_flow`).
+ * Stores real-time OPRA options prints ingested by OptionsScanner, providing
+ * indexed pagination, daily sentiment aggregation, and automatic retention pruning.
+ *
+ * Upstream Sources:
+ *  - OptionsScanner (`services/options-scanner.ts`) via ThetaData OPRA feed (`:25503`)
+ * Downstream Consumers:
+ *  - `/v1/flow` and `/v1/flow/stats` API endpoints (`routes/flow.ts`)
+ *  - BiotechService (`services/biotech-service.ts`) for catalyst options sentiment
+ */
+
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
@@ -68,8 +80,12 @@ export class OptionsDb {
 
   private initTotalCount() {
     try {
-      const maxRow: any = this.db.prepare("SELECT MAX(_rowid_) as max_id FROM options_flow").get();
-      this.totalCount = Number(maxRow?.max_id) || 0;
+      const row: any = this.db
+        .prepare(
+          "SELECT CASE WHEN MAX(_rowid_) IS NULL THEN 0 ELSE MAX(_rowid_) - MIN(_rowid_) + 1 END as total FROM options_flow"
+        )
+        .get();
+      this.totalCount = Number(row?.total) || 0;
     } catch {
       this.totalCount = 0;
     }
@@ -142,7 +158,7 @@ export class OptionsDb {
       const ticker = String(trade.ticker || "UNKNOWN").toUpperCase();
       const strike = Number(trade.strike) || 0;
 
-      this.insertStmt.run(
+      const result = this.insertStmt.run(
         id,
         ticker,
         expiration,
@@ -164,7 +180,9 @@ export class OptionsDb {
         timeStr,
         tradeDate
       );
-      this.totalCount++;
+      if (result.changes > 0) {
+        this.totalCount++;
+      }
       return true;
     } catch (err) {
       console.error("[OptionsDb] insert error:", err);

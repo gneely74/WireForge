@@ -447,6 +447,7 @@ export class TreeNewsService {
       sentiment,
       source: sourceTag,
       url,
+      timestamp: typeof item.time === "number" && item.time > 0 ? item.time : undefined,
     });
   }
 

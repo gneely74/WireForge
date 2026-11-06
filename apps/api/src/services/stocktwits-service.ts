@@ -101,6 +101,9 @@ export class StockTwitsService {
         const cleanSnippet = body.replace(/\s+/g, " ").slice(0, 100);
         const title = `${tickers.slice(0, 3).map((t: string) => `$${t}`).join(" ")}: ${cleanSnippet}${body.length > 100 ? "..." : ""}`;
 
+        const parsedCreated = msg.created_at ? Date.parse(msg.created_at) : NaN;
+        const msgTimestamp = !isNaN(parsedCreated) && parsedCreated > 0 ? parsedCreated : undefined;
+
         const article = globalNewsAggregator.addArticle({
           title,
           summary: body,
@@ -111,6 +114,7 @@ export class StockTwitsService {
           sentiment,
           source: "StockTwits",
           url: `https://stocktwits.com/${user}/message/${msg.id}`,
+          timestamp: msgTimestamp,
         });
 
         if (article) {

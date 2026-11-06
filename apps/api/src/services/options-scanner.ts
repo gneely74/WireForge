@@ -97,15 +97,25 @@ export class OptionsScanner {
         params.ticker ||
         (params.watchlistSymbols && params.watchlistSymbols.length > 0) ||
         params.minPremium ||
-        params.sentiment ||
+        (params.sentiment && params.sentiment !== "neutral") ||
         params.orderType ||
         params.isGolden !== undefined
       );
 
-      if (!hasSpecificFilter || list.length >= offset + limit) {
+      const dbTotal = globalOptionsDb.getTotalCount();
+      const allInMemory = dbTotal <= this.trades.length;
+
+      if (!hasSpecificFilter && (allInMemory || offset + limit <= this.trades.length)) {
+        return {
+          trades: this.trades.slice(offset, offset + limit),
+          total: Math.max(this.trades.length, dbTotal),
+        };
+      }
+
+      if (hasSpecificFilter && (allInMemory || list.length >= offset + limit)) {
         return {
           trades: list.slice(offset, offset + limit),
-          total: globalOptionsDb.getTotalCount(),
+          total: list.length,
         };
       }
     }
@@ -243,11 +253,16 @@ export class OptionsScanner {
   // ──────────────── Dynamic ThetaData Helpers ────────────────
 
   private getTodayCompact(): string {
-    return new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    return this.getTodayISO().replace(/-/g, "");
   }
 
   private getTodayISO(): string {
-    return new Date().toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
   }
 
   private async getNearExpirations(symbol: string): Promise<string[]> {
@@ -444,10 +459,12 @@ export class OptionsScanner {
         const sentiment: Sentiment = right === "C" ? "bullish" : "bearish";
         const isGolden = premium >= 1000000 || (size >= 1000 && right === "C" && premium >= 250000);
 
-        // Calculate DTE
-        const expDate = new Date(expiration).getTime();
-        const now = Date.now();
-        const dte = Math.max(0, Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)));
+        // Calculate DTE using US Eastern calendar dates
+        const todayMidnightUtc = Date.parse(`${this.getTodayISO()}T00:00:00Z`);
+        const expMidnightUtc = Date.parse(`${expiration}T00:00:00Z`);
+        const dte = isNaN(expMidnightUtc)
+          ? 0
+          : Math.max(0, Math.round((expMidnightUtc - todayMidnightUtc) / 86400000));
 
         this.addTrade({
           ticker: symbol,
@@ -595,7 +612,10 @@ export class OptionsScanner {
   }
 
   stop() {
-    if (this.thetaTimer) clearInterval(this.thetaTimer);
+    if (this.thetaTimer) {
+      clearTimeout(this.thetaTimer);
+      this.thetaTimer = null;
+    }
   }
 }
 

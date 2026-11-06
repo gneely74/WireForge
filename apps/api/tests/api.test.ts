@@ -172,11 +172,13 @@ describe("WireForge Backend API Test Suite", () => {
     expect(resAll.status).toBe(200);
     const bodyAll = await resAll.json();
     expect(bodyAll.data.some((t: any) => t.ticker === "QQQ" && t.contractType === "PUT")).toBe(true);
+    expect(bodyAll.total).toBe(bodyAll.data.length);
 
     const resBear = await app.request("/v1/flow?sentiment=bearish");
     expect(resBear.status).toBe(200);
     const bodyBear = await resBear.json();
     expect(bodyBear.data.every((t: any) => t.sentiment === "bearish")).toBe(true);
+    expect(bodyBear.total).toBe(bodyBear.data.length);
   });
 
   it("GET /v1/flow/stats returns options sentiment ratio", async () => {

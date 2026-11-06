@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Top workstation navigation bar, ecosystem health telemetry strip,
+ * global watchlist selector, ticker chart launcher, and audio squawk quick controls.
+ *
+ * Upstream Sources:
+ *  - `useWireForgeStore` (`ecosystemHealth`, `watchlists`, `activeTab`, `squawkEnabled`)
+ * Downstream Interactions:
+ *  - Switches workstation views, syncs active watchlist across tabs, opens MiniChartModal.
+ */
+
 import React, { useState, useRef, useEffect } from "react";
 import {
   Activity,
@@ -418,7 +428,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected }) => {
         <div className="flex items-center gap-3 text-gray-500">
           <span>THETADATA: {ecosystemHealth?.thetadata.connected ? "ONLINE" : "STANDBY"}</span>
           <span>TRADING AGENT: {ecosystemHealth?.tradingAgent.connected ? "CONNECTED" : "STANDBY"}</span>
-          <span>CHARTFORGE: {ecosystemHealth?.chartforge.connected ? "CONNECTED" : "ONLINE"}</span>
+          <span>CHARTFORGE: {ecosystemHealth?.chartforge.connected ? "CONNECTED" : "STANDBY"}</span>
         </div>
       </div>
     </header>

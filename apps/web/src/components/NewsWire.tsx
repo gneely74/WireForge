@@ -393,11 +393,19 @@ export const NewsWire: React.FC = () => {
   );
 };
 
+/**
+ * Formats an epoch millisecond timestamp as a concise relative age string (`Xs ago`, `Xm ago`, `Xh ago`, `Xd ago`).
+ * Clamps negative clock skew to `0s ago`.
+ *
+ * @param {number} ts - Publication timestamp in milliseconds since Unix epoch.
+ * @returns {string} Human-readable relative elapsed time.
+ */
 function formatTimeAgo(ts: number): string {
-  const diffSec = Math.floor((Date.now() - ts) / 1000);
+  const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
   if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) return `${diffMin}m ago`;
   const diffHours = Math.floor(diffMin / 60);
-  return `${diffHours}h ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${Math.floor(diffHours / 24)}d ago`;
 }

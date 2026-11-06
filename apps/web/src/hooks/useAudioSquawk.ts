@@ -1,3 +1,14 @@
+/**
+ * @fileoverview HTML5 SpeechSynthesis hook for real-time audio squawk announcements.
+ * Consumes queued squawk messages from `useWireForgeStore` and speaks breaking news,
+ * golden options sweeps, and volatility halts according to user channel preferences.
+ *
+ * Upstream Sources:
+ *  - `useWireForgeStore` (`squawkQueue`, `squawkEnabled`, `squawkChannels`)
+ * Downstream Consumers:
+ *  - `Header.tsx` and `AudioSquawk.tsx` control drawer.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { useWireForgeStore } from "../store/wireforge-store.js";
 
@@ -35,6 +46,7 @@ export function useAudioSquawk() {
   // Process squawk queue
   useEffect(() => {
     if (!squawkEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
+      isSpeakingRef.current = false;
       return;
     }
 

@@ -40,6 +40,7 @@ describe("TreeNewsService Normalization & Ingestion", () => {
     expect(article.tickers).toContain("FED");
     expect(article.tickers).toContain("MACRO");
     expect(article.url).toBe(raw.url);
+    expect(article.timestamp).toBe(raw.time);
   });
 
   it("normalizes and classifies SEC regulatory orders", () => {

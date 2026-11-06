@@ -105,8 +105,27 @@ macroRouter.get("/indicators", async (c) => {
     stablecoinVal = Math.round((stableData.summary.totalCirculatingUsd / 1e9) * 10) / 10;
     stablecoinDisplay = `$${stablecoinVal.toFixed(1)}B`;
     stablecoinChange3m = Math.round((stableData.summary.change90dUsd / 1e9) * 10) / 10;
-    const sign = stablecoinChange3m >= 0 ? "+" : "";
-    stablecoinChange3mDisplay = `${sign}$${stablecoinChange3m.toFixed(1)}B (${sign}${stableData.summary.change90dPct.toFixed(1)}% 3M)`;
+    const sign = stablecoinChange3m >= 0 ? "+" : "-";
+    const pctSign = stableData.summary.change90dPct >= 0 ? "+" : "";
+    stablecoinChange3mDisplay = `${sign}$${Math.abs(stablecoinChange3m).toFixed(1)}B (${pctSign}${stableData.summary.change90dPct.toFixed(1)}% 3M)`;
+  } catch {
+    // Retain baseline if upstream is unreachable
+  }
+
+  let yield10y3mVal = -0.32;
+  let yield10y3mDisplay = "-0.32%";
+  let yield10y3mStatus = "caution";
+  let yield10y3mDirection = "rising";
+
+  try {
+    const yc = await globalYieldCurveService.getYieldCurve();
+    if (yc.spreads.spread10y3m !== null && yc.spreads.spread10y3m !== undefined) {
+      yield10y3mVal = yc.spreads.spread10y3m;
+      const sign = yield10y3mVal > 0 ? "+" : "";
+      yield10y3mDisplay = `${sign}${yield10y3mVal.toFixed(2)}%`;
+      yield10y3mStatus = yc.spreads.isInverted10y3m ? "caution" : "healthy";
+      yield10y3mDirection = yield10y3mVal >= 0 ? "rising" : "falling";
+    }
   } catch {
     // Retain baseline if upstream is unreachable
   }
@@ -143,14 +162,14 @@ macroRouter.get("/indicators", async (c) => {
         id: "yield_curve_10y3m",
         name: "Yield Curve (10Y - 3M)",
         category: "fed_liquidity",
-        current_value: -0.32,
-        display_value: "-0.32%",
+        current_value: yield10y3mVal,
+        display_value: yield10y3mDisplay,
         unit: "Percentage Points",
         change_3m: 0.45,
         change_3m_display: "Un-inverting (+45 bp)",
         percentile_10y: 14.0,
-        status: "caution",
-        direction: "rising"
+        status: yield10y3mStatus,
+        direction: yield10y3mDirection
       },
       {
         id: "high_yield_oas",

@@ -23,6 +23,7 @@ export class YieldCurveService {
   private valueforgeCandidates: string[];
   private cache: CachedYieldCurve | null = null;
   private readonly CACHE_TTL_MS = 15 * 60 * 1000; // 15-minute TTL
+  private pollerTimer: NodeJS.Timeout | null = null;
 
   /**
    * Initializes YieldCurveService and resolves candidate URLs for ValueForge.
@@ -242,13 +243,15 @@ export class YieldCurveService {
    * @param {number} [intervalMs=900000] Polling interval in milliseconds (default 15 minutes).
    */
   public startBackgroundPoller(intervalMs: number = 15 * 60 * 1000): void {
+    if (this.pollerTimer) return;
+
     // Non-blocking pre-warm on initial boot
     this.getYieldCurve().catch((err) => {
       console.warn("[YieldCurveService] Initial boot pre-warm warning:", err.message);
     });
 
     // Scheduled background refresh
-    const timer = setInterval(async () => {
+    this.pollerTimer = setInterval(async () => {
       try {
         await this.getYieldCurve(true);
       } catch (err: any) {
@@ -257,8 +260,18 @@ export class YieldCurveService {
     }, intervalMs);
 
     // Unref timer so it does not block Node process termination in tests or scripts
-    if (typeof timer.unref === "function") {
-      timer.unref();
+    if (typeof this.pollerTimer.unref === "function") {
+      this.pollerTimer.unref();
+    }
+  }
+
+  /**
+   * Stops the background yield curve poller cleanly.
+   */
+  public stop(): void {
+    if (this.pollerTimer) {
+      clearInterval(this.pollerTimer);
+      this.pollerTimer = null;
     }
   }
 }

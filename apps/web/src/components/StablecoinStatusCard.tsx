@@ -414,13 +414,19 @@ export const StablecoinStatusCard: React.FC = () => {
             </div>
           </div>
           <div className="text-xl font-bold text-white font-mono mt-1 group-hover:text-cyan-300 transition-colors">
-            {data?.summary.totalCirculatingDisplay || "$310.9B"}
+            {data?.summary.totalCirculatingDisplay || "—"}
           </div>
           <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
-            <div className="flex items-center gap-1 text-emerald-400">
+            <div
+              className={`flex items-center gap-1 ${
+                data && data.summary.change30dPct < 0 ? "text-rose-400" : "text-emerald-400"
+              }`}
+            >
               <TrendingUp size={12} />
               <span>
-                {data ? `${data.summary.change30dPct >= 0 ? "+" : ""}${data.summary.change30dPct.toFixed(1)}% (30d)` : "+0.8% (30d)"}
+                {data
+                  ? `${data.summary.change30dPct >= 0 ? "+" : ""}${data.summary.change30dPct.toFixed(1)}% (30d)`
+                  : "—"}
               </span>
             </div>
             <span className="text-[10px] text-cyan-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -444,12 +450,12 @@ export const StablecoinStatusCard: React.FC = () => {
           </div>
           <div className="text-xl font-bold text-white font-mono mt-1 group-hover:text-blue-300 transition-colors">
             {data
-              ? `${data.summary.change1dUsd >= 0 ? "+" : ""}$${Math.abs(Math.round(data.summary.change1dUsd / 1e6))}M`
-              : "+$320M"}
+              ? `${data.summary.change1dUsd >= 0 ? "+" : "-"}$${Math.abs(Math.round(data.summary.change1dUsd / 1e6))}M`
+              : "—"}
           </div>
           <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
             <span className="text-gray-400">
-              {data ? `${data.summary.change1dPct >= 0 ? "+" : ""}${data.summary.change1dPct.toFixed(2)}% velocity` : "+0.10% net"}
+              {data ? `${data.summary.change1dPct >= 0 ? "+" : ""}${data.summary.change1dPct.toFixed(2)}% velocity` : "—"}
             </span>
             <span className="text-[10px] text-blue-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
               Explain ➔
@@ -471,7 +477,7 @@ export const StablecoinStatusCard: React.FC = () => {
             </div>
           </div>
           <div className="text-xl font-bold text-white font-mono mt-1 group-hover:text-amber-300 transition-colors">
-            {data?.summary.estimatedTBillHoldingsDisplay || "$240.5B"}
+            {data?.summary.estimatedTBillHoldingsDisplay || "—"}
           </div>
           <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
             <span className="text-amber-400/90 truncate">Top 15 Global Sovereign Holder</span>
@@ -495,10 +501,14 @@ export const StablecoinStatusCard: React.FC = () => {
             </div>
           </div>
           <div className="text-xl font-bold text-emerald-400 font-mono mt-1 group-hover:text-emerald-300 transition-colors">
-            {data ? `${data.summary.pegHealthScore}% Pristine` : "100% Pristine"}
+            {data ? `${data.summary.pegHealthScore}% Pristine` : "—"}
           </div>
           <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
-            <span className="text-gray-400">0 de-peg alerts across top 10</span>
+            <span className="text-gray-400">
+              {data
+                ? `${data.summary.totalTrackedCount - data.summary.healthyCount} de-peg alerts across top ${data.summary.totalTrackedCount}`
+                : "—"}
+            </span>
             <span className="text-[10px] text-emerald-400/80 opacity-0 group-hover:opacity-100 transition-opacity">
               Explain ➔
             </span>
@@ -817,8 +827,8 @@ export const StablecoinStatusCard: React.FC = () => {
                           asset.change30dUsd >= 0 ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"
                         }
                       >
-                        {asset.change30dUsd >= 0 ? "+" : ""}$
-                        {(asset.change30dUsd / 1e6).toFixed(0)}M
+                        {asset.change30dUsd >= 0 ? "+" : "-"}$
+                        {(Math.abs(asset.change30dUsd) / 1e6).toFixed(0)}M
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-bold text-white">
@@ -864,8 +874,16 @@ export const StablecoinStatusCard: React.FC = () => {
           <Info size={15} className="text-cyan-400 flex-shrink-0" />
           <p className="text-gray-300">
             <strong>Macro Rule:</strong> When 30-Day Stablecoin Velocity is positive (current:{" "}
-            <span className="text-emerald-400 font-bold">
-              {data ? `+$${(data.summary.change30dUsd / 1e9).toFixed(2)}B` : "+$2.5B"}
+            <span
+              className={
+                data && data.summary.change30dUsd < 0
+                  ? "text-rose-400 font-bold"
+                  : "text-emerald-400 font-bold"
+              }
+            >
+              {data
+                ? `${data.summary.change30dUsd >= 0 ? "+" : "-"}$${(Math.abs(data.summary.change30dUsd) / 1e9).toFixed(2)}B`
+                : "—"}
             </span>
             ), risk assets and fintechs enjoy liquidity tailwinds. Click to view the full Macro Playbook.
           </p>

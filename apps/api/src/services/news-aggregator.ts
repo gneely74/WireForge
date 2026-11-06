@@ -198,6 +198,9 @@ export class NewsAggregator {
         }
 
         const isHighImpact = rawSummary.includes("Item 1.01") || rawSummary.includes("Item 2.02") || rawSummary.includes("Item 8.01");
+        const updatedMatch = entry.match(/<updated>(.*?)<\/updated>/);
+        const parsedUpdated = updatedMatch ? Date.parse(updatedMatch[1].trim()) : NaN;
+        const timestamp = !isNaN(parsedUpdated) && parsedUpdated > 0 ? parsedUpdated : Date.now();
 
         this.addArticle({
           title: `SEC Form 8-K: ${companyName}`,
@@ -209,6 +212,7 @@ export class NewsAggregator {
           sentiment: "neutral",
           source: "SEC EDGAR",
           url: link,
+          timestamp,
         });
       }
     } catch {
@@ -277,6 +281,9 @@ export class NewsAggregator {
         else if (/plunges|misses|drops|falls|halves|downgrade|bear|warning|slumps|tumbles/i.test(lower)) sentiment = "bearish";
 
         const impact: NewsImpact = (/breaking|beats|halves|plunges|surges|crisis|fed rate/i.test(lower) || tickers.length > 0) ? "high" : "medium";
+        const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+        const parsedPubDate = pubDateMatch ? Date.parse(pubDateMatch[1].trim()) : NaN;
+        const timestamp = !isNaN(parsedPubDate) && parsedPubDate > 0 ? parsedPubDate : Date.now();
 
         this.addArticle({
           title,
@@ -288,6 +295,7 @@ export class NewsAggregator {
           sentiment,
           source,
           url: link,
+          timestamp,
         });
       }
     } catch {
@@ -367,7 +375,13 @@ export class NewsAggregator {
    * @param article - The partial news article to ingest.
    * @returns {NewsArticle | null} The enriched article or null if rejected as duplicate.
    */
-  addArticle(article: Omit<NewsArticle, "id" | "timestamp" | "isoTime" | "isSquawked"> & { isSquawked?: boolean }): NewsArticle | null {
+  addArticle(
+    article: Omit<NewsArticle, "id" | "timestamp" | "isoTime" | "isSquawked"> & {
+      timestamp?: number;
+      isoTime?: string;
+      isSquawked?: boolean;
+    }
+  ): NewsArticle | null {
     const dedupe = this.deduplicator.checkAndTrack({
       title: article.title,
       url: article.url,
@@ -379,18 +393,24 @@ export class NewsAggregator {
       return null;
     }
 
+    const ts =
+      typeof article.timestamp === "number" && !isNaN(article.timestamp) && article.timestamp > 0
+        ? article.timestamp
+        : Date.now();
+
     const full: NewsArticle = {
       ...article,
-      id: `news-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      timestamp: Date.now(),
-      isoTime: new Date().toISOString(),
+      id: `news-${ts}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: ts,
+      isoTime: article.isoTime || new Date(ts).toISOString(),
       isSquawked: article.isSquawked ?? false,
     };
 
     this.articles.unshift(full);
+    this.articles.sort((a, b) => b.timestamp - a.timestamp);
     // Keep last 500 articles in memory
     if (this.articles.length > 500) {
-      this.articles.pop();
+      this.articles.length = 500;
     }
 
     // Persist to SQLite
@@ -423,8 +443,14 @@ export class NewsAggregator {
   }
 
   stop() {
-    if (this.secTimer) clearInterval(this.secTimer);
-    if (this.rssTimer) clearInterval(this.rssTimer);
+    if (this.secTimer) {
+      clearTimeout(this.secTimer);
+      this.secTimer = null;
+    }
+    if (this.rssTimer) {
+      clearTimeout(this.rssTimer);
+      this.rssTimer = null;
+    }
   }
 }
 

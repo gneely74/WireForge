@@ -66,10 +66,11 @@ export interface StablecoinStatusData {
 export class StablecoinService {
   private cache: { data: StablecoinStatusData; expiresAt: number } | null = null;
   private readonly CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache for live quotes
-  private isFetching = false;
+  private inflightPromise: Promise<StablecoinStatusData> | null = null;
 
   /**
    * Retrieves aggregated live stablecoin status with sub-5ms cached latency.
+   * Coalesces concurrent requests when the cache is cold.
    *
    * @returns {Promise<StablecoinStatusData>} Enriched live stablecoin intelligence.
    */
@@ -79,20 +80,30 @@ export class StablecoinService {
       return this.cache.data;
     }
 
-    try {
-      const fresh = await this.fetchLiveStatus();
-      this.cache = {
-        data: fresh,
-        expiresAt: now + this.CACHE_TTL_MS,
-      };
-      return fresh;
-    } catch (err) {
-      console.error("[StablecoinService] Failed to fetch live data:", err);
-      if (this.cache) {
-        return this.cache.data; // Serve stale cache if available
-      }
-      throw err;
+    if (this.inflightPromise) {
+      return this.inflightPromise;
     }
+
+    this.inflightPromise = this.fetchLiveStatus()
+      .then((fresh) => {
+        this.cache = {
+          data: fresh,
+          expiresAt: Date.now() + this.CACHE_TTL_MS,
+        };
+        return fresh;
+      })
+      .catch((err) => {
+        console.error("[StablecoinService] Failed to fetch live data:", err);
+        if (this.cache) {
+          return this.cache.data; // Serve stale cache if available
+        }
+        throw err;
+      })
+      .finally(() => {
+        this.inflightPromise = null;
+      });
+
+    return this.inflightPromise;
   }
 
   /**
@@ -150,9 +161,11 @@ export class StablecoinService {
         const change30dUsd = circulating - prevMonth;
         const change30dPct = prevMonth > 0 ? (change30dUsd / prevMonth) * 100 : 0;
 
-        totalCirculatingUsd += circulating;
-        total1dChangeUsd += change1dUsd;
-        total30dChangeUsd += change30dUsd;
+        if (circulating > 1000000) {
+          totalCirculatingUsd += circulating;
+          total1dChangeUsd += change1dUsd;
+          total30dChangeUsd += change30dUsd;
+        }
 
         return {
           id: String(a.id),
@@ -240,14 +253,19 @@ export class StablecoinService {
     const history3Y = downsample(validChartPoints.slice(-1095), 120);
     const historyALL = downsample(validChartPoints, 150);
 
+    const totalPrevDayUsd = totalCirculatingUsd - total1dChangeUsd;
+    const totalPrevMonthUsd = totalCirculatingUsd - total30dChangeUsd;
+
     return {
       summary: {
         totalCirculatingUsd,
         totalCirculatingDisplay: `$${(totalCirculatingUsd / 1e9).toFixed(1)}B`,
         change1dUsd: total1dChangeUsd,
-        change1dPct: totalCirculatingUsd > 0 ? (total1dChangeUsd / totalCirculatingUsd) * 100 : 0,
+        change1dPct:
+          totalPrevDayUsd > 0 ? Math.round((total1dChangeUsd / totalPrevDayUsd) * 10000) / 100 : 0,
         change30dUsd: total30dChangeUsd,
-        change30dPct: totalCirculatingUsd > 0 ? (total30dChangeUsd / totalCirculatingUsd) * 100 : 0,
+        change30dPct:
+          totalPrevMonthUsd > 0 ? Math.round((total30dChangeUsd / totalPrevMonthUsd) * 10000) / 100 : 0,
         change90dUsd,
         change90dPct: Math.round(change90dPct * 10) / 10,
         estimatedTBillHoldingsUsd,
